@@ -43,7 +43,7 @@ export default function AdminDashboardScreen({ user, token, onLogout, lang }) {
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{user?.name}</Text>
           <Text style={styles.userRole}>{user?.role} • Management Portal</Text>
-          <Text style={styles.schoolName}>{user?.schoolId || 'Greenwood International'}</Text>
+          <Text style={styles.schoolName}>{user?.schoolName || user?.schoolId || 'School Main Campus'}</Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
           <Text style={styles.logoutText}>Logout</Text>

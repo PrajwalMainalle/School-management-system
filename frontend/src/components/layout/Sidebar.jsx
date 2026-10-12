@@ -4,7 +4,6 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
-  Activity,
   Users,
   GraduationCap,
   Briefcase,
@@ -28,15 +27,15 @@ import {
   Droplets,
   ShieldCheck,
   UserCheck,
+  LogOut,
 } from 'lucide-react';
 
 export const Sidebar = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { path: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
-    { path: '/system-health', label: t('nav.systemHealth'), icon: Activity },
   ];
 
   // User Management accessible to Organizers, Super Admins, and Admins
@@ -78,8 +77,8 @@ export const Sidebar = () => {
             <Sprout className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-800 tracking-tight leading-none">
-              Greenwood ERP
+            <h1 className="text-sm font-bold text-slate-800 tracking-tight leading-none truncate max-w-[150px]" title={user?.schoolName || 'School ERP'}>
+              {user?.schoolName || 'School ERP'}
             </h1>
             <p className="text-[11px] font-medium text-ecoGreen-600 flex items-center gap-1 mt-1">
               <span>🌱 Learn</span> • <span>Grow</span> • <span>Protect 💧</span>
@@ -115,6 +114,18 @@ export const Sidebar = () => {
               </NavLink>
             );
           })}
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer mt-2 border-t border-slate-100 pt-3"
+            title={t('auth.logout') || 'Logout'}
+          >
+            <div className="flex items-center gap-3">
+              <LogOut className="w-4 h-4 text-red-500" />
+              <span>{t('auth.logout') || 'Logout'}</span>
+            </div>
+          </button>
         </nav>
       </div>
 

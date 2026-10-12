@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   BookOpen,
   Plus,
@@ -22,6 +23,7 @@ import {
 
 export default function HomeworkManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('assignments'); // 'assignments' | 'submissions' | 'materials'
 
   // Data States
@@ -118,8 +120,8 @@ export default function HomeworkManagementPage() {
     try {
       const payload = {
         ...hwFormData,
-        schoolId: 'SCHOOL_GREENWOOD_MAIN',
-        branchId: 'BRANCH_MAIN_CAMPUS',
+        schoolId: user?.schoolId || '',
+        branchId: user?.branchId || '',
         academicYearId: 'ay_2026_27',
         attachmentFiles: hwFormData.attachmentName
           ? [{ name: hwFormData.attachmentName }]
@@ -164,8 +166,8 @@ export default function HomeworkManagementPage() {
     try {
       const payload = {
         ...matFormData,
-        schoolId: 'SCHOOL_GREENWOOD_MAIN',
-        branchId: 'BRANCH_MAIN_CAMPUS',
+        schoolId: user?.schoolId || '',
+        branchId: user?.branchId || '',
         academicYearId: 'ay_2026_27',
         attachmentFiles: matFormData.attachmentName
           ? [{ name: matFormData.attachmentName }]

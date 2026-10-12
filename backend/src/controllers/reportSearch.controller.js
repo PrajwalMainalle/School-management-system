@@ -21,7 +21,7 @@ import { sendSuccess, sendError } from '../utils/apiResponse.js';
 export const globalSearch = async (req, res) => {
   try {
     const { q, category } = req.query;
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const userRole = req.user?.role || 'STUDENT';
 
     if (!q || q.trim().length < 2) {
@@ -119,7 +119,7 @@ export const globalSearch = async (req, res) => {
  */
 export const getReportsData = async (req, res) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const { moduleType, startDate, endDate } = req.query;
 
     if (mongoose.connection.readyState === 1) {
@@ -178,7 +178,7 @@ export const getReportsData = async (req, res) => {
  */
 export const exportReportCSV = async (req, res) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const { moduleType } = req.query;
 
     let csvContent = 'ID,Name,Type,Status,Date\n';

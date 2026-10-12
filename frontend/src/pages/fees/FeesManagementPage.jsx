@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   CreditCard,
   Plus,
@@ -19,6 +20,7 @@ import {
 
 export default function FeesManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('invoices'); // 'invoices' | 'structures' | 'config' | 'audit'
 
   // Data States
@@ -169,8 +171,8 @@ export default function FeesManagementPage() {
         name: structFormData.name,
         classId: structFormData.classId,
         dueDate: structFormData.dueDate || new Date(Date.now() + 86400000 * 30).toISOString(),
-        schoolId: 'SCHOOL_GREENWOOD_MAIN',
-        branchId: 'BRANCH_MAIN_CAMPUS',
+        schoolId: user?.schoolId || '',
+        branchId: user?.branchId || '',
         academicYearId: 'ay_2026_27',
         feeHeads: [
           { headName: structFormData.head1Name, amount: Number(structFormData.head1Amount) },
@@ -207,8 +209,8 @@ export default function FeesManagementPage() {
       const payload = {
         ...invFormData,
         discountAmount: Number(invFormData.discountAmount),
-        schoolId: 'SCHOOL_GREENWOOD_MAIN',
-        branchId: 'BRANCH_MAIN_CAMPUS',
+        schoolId: user?.schoolId || '',
+        branchId: user?.branchId || '',
         academicYearId: 'ay_2026_27',
       };
 

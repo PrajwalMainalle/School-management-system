@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import Card from '../components/common/Card';
 import StatCard from '../components/common/StatCard';
-import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import {
   GraduationCap,
@@ -11,18 +11,14 @@ import {
   CheckCircle2,
   Sprout,
   Droplet,
-  Server,
-  Database,
   Languages,
-  ArrowRight,
   ShieldCheck,
-  Zap,
 } from 'lucide-react';
 import axios from 'axios';
 
 export const DashboardPage = () => {
   const { t, lang } = useLanguage();
-  const [apiHealth, setApiHealth] = useState(null);
+  const { user } = useAuth();
   const [summaryData, setSummaryData] = useState({
     totalStudents: 0,
     totalTeachers: 0,
@@ -35,14 +31,10 @@ export const DashboardPage = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('erp_token');
-        const [healthRes, sumRes] = await Promise.all([
-          axios.get('/api/health').catch(() => null),
-          axios.get('/api/school/dashboard-summary', {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => null),
-        ]);
+        const sumRes = await axios.get('/api/school/dashboard-summary', {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null);
 
-        if (healthRes?.data?.success) setApiHealth(healthRes.data.data);
         if (sumRes?.data?.success && sumRes.data.data) {
           setSummaryData(sumRes.data.data);
         }
@@ -124,93 +116,35 @@ export const DashboardPage = () => {
         />
       </div>
 
-      {/* System Status & Architecture Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* API Health Card */}
-        <Card
-          title={t('dashboard.systemStatus')}
-          subtitle="Platform Overview"
-          ecoBorder={true}
-          className="lg:col-span-2"
-        >
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-lg ${apiHealth ? 'bg-ecoGreen-100 text-ecoGreen-700' : 'bg-amber-100 text-amber-700'}`}>
-                  <Server className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">{t('dashboard.backendStatus')}</h4>
-                  <p className="text-xs text-slate-500">System API Service</p>
-                </div>
-              </div>
-              <Badge variant={apiHealth ? 'green' : 'warning'}>
-                {apiHealth ? 'ONLINE' : 'Connecting...'}
-              </Badge>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-sky-100 text-sky-700">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">{t('dashboard.databaseStatus')}</h4>
-                  <p className="text-xs text-slate-500">Secure School Cloud Database</p>
-                </div>
-              </div>
-              <Badge variant="sky">
-                {apiHealth?.databaseStatus || 'Connected'}
-              </Badge>
-            </div>
-
-            <div className="p-4 rounded-xl bg-sky-50/60 border border-sky-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-700">
-                  <Languages className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">Language Support</h4>
-                  <p className="text-xs text-slate-500">Current Language: <strong className="text-sky-700">{lang === 'en' ? 'English' : 'ಕನ್ನಡ (Kannada)'}</strong></p>
-                </div>
-              </div>
-              <Badge variant="green">Active</Badge>
-            </div>
+      {/* Environmental Slogan & Sustainability Hub */}
+      <Card title="🌱 Sustainability Hub" subtitle="School Eco Commitments">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="p-3.5 rounded-lg bg-sky-50 text-sky-900 border border-sky-200">
+            <p className="font-semibold flex items-center gap-1.5 mb-1">
+              <Droplet className="w-4 h-4 text-sky-600" />
+              <span>Save Water Commitment</span>
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              {t('ecoMsg.waterTip')}
+            </p>
           </div>
-        </Card>
 
-        {/* Environmental Slogan & Tips */}
-        <Card title="🌱 Sustainability Hub" subtitle="School Eco Commitments">
-          <div className="space-y-4 text-xs">
-            <div className="p-3.5 rounded-lg bg-sky-50 text-sky-900 border border-sky-200">
-              <p className="font-semibold flex items-center gap-1.5 mb-1">
-                <Droplet className="w-4 h-4 text-sky-600" />
-                <span>Save Water Commitment</span>
-              </p>
-              <p className="text-slate-600 leading-relaxed">
-                {t('ecoMsg.waterTip')}
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-ecoGreen-50 text-ecoGreen-900 border border-ecoGreen-200">
-              <p className="font-semibold flex items-center gap-1.5 mb-1">
-                <Sprout className="w-4 h-4 text-ecoGreen-600" />
-                <span>Plant Trees Initiative</span>
-              </p>
-              <p className="text-slate-600 leading-relaxed">
-                {t('ecoMsg.treeTip')}
-              </p>
-            </div>
-
-            <div className="pt-2 text-center text-slate-500">
-              <p className="font-semibold text-slate-700">Greenwood School ERP</p>
-              <p className="text-[11px] mt-1">Sustainable & Modern School Platform</p>
-            </div>
+          <div className="p-3.5 rounded-lg bg-ecoGreen-50 text-ecoGreen-900 border border-ecoGreen-200">
+            <p className="font-semibold flex items-center gap-1.5 mb-1">
+              <Sprout className="w-4 h-4 text-ecoGreen-600" />
+              <span>Plant Trees Initiative</span>
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              {t('ecoMsg.treeTip')}
+            </p>
           </div>
-        </Card>
+        </div>
 
-      </div>
+        <div className="pt-3 text-center text-slate-500 text-xs border-t border-slate-100 mt-4">
+          <p className="font-semibold text-slate-700">{user?.schoolName || 'School ERP'}</p>
+          <p className="text-[11px] mt-0.5">Sustainable & Modern School Platform</p>
+        </div>
+      </Card>
     </div>
   );
 };

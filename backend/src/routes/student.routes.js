@@ -15,7 +15,7 @@ router.use(enforceTenantIsolation);
 router
   .route('/')
   .get(getStudents)
-  .post(authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN'), createStudent);
+  .post(authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'TEACHER'), createStudent);
 
 router
   .route('/:id')

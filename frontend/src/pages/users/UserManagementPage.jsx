@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { Users, UserPlus, Search, Shield, CheckCircle, XCircle, RefreshCw, Key, Filter } from 'lucide-react';
+import { Users, UserPlus, Search, Shield, CheckCircle, XCircle, RefreshCw, Key, Filter, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 export const UserManagementPage = () => {
@@ -16,6 +16,7 @@ export const UserManagementPage = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // New User Form State
   const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ export const UserManagementPage = () => {
     username: '',
     password: '',
     phone: '',
-    role: 'TEACHER',
+    role: currentUser?.role === 'TEACHER' ? 'STUDENT' : 'TEACHER',
     permissions: ['attendance:write'],
     languagePreference: 'en',
   });
@@ -81,7 +82,7 @@ export const UserManagementPage = () => {
             username: '',
             password: '',
             phone: '',
-            role: 'TEACHER',
+            role: currentUser?.role === 'TEACHER' ? 'STUDENT' : 'TEACHER',
             permissions: ['attendance:write'],
             languagePreference: 'en',
           });
@@ -151,12 +152,18 @@ export const UserManagementPage = () => {
             className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
             <option value="">All Roles</option>
-            <option value="SUPER_ADMIN">Super Admin</option>
-            <option value="ADMIN">Admin / Principal</option>
+            {currentUser?.role !== 'ADMIN' && (
+              <>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="ADMIN">Admin / Principal</option>
+              </>
+            )}
             <option value="TEACHER">Teacher</option>
             <option value="NON_TEACHING_STAFF">Non-Teaching Staff</option>
             <option value="STUDENT">Student</option>
-            <option value="ORGANIZER">SaaS Organizer</option>
+            {currentUser?.role === 'ORGANIZER' && (
+              <option value="ORGANIZER">SaaS Organizer</option>
+            )}
           </select>
           <Button onClick={fetchUsers} variant="ghost" size="sm" icon={RefreshCw}>
             Refresh
@@ -210,13 +217,17 @@ export const UserManagementPage = () => {
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button
-                        onClick={() => handleToggleStatus(u._id)}
-                        variant={u.isActive ? 'outline' : 'secondary'}
-                        size="sm"
-                      >
-                        {u.isActive ? t('users.deactivate') : t('users.activate')}
-                      </Button>
+                      {u._id === currentUser?._id ? (
+                        <span className="text-[10px] text-slate-400 font-medium px-2 py-1 bg-slate-100 rounded">You</span>
+                      ) : (
+                        <Button
+                          onClick={() => handleToggleStatus(u._id)}
+                          variant={u.isActive ? 'outline' : 'secondary'}
+                          size="sm"
+                        >
+                          {u.isActive ? t('users.deactivate') : t('users.activate')}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -263,7 +274,7 @@ export const UserManagementPage = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
-                    placeholder="ramesh@greenwood.edu"
+                    placeholder="ramesh@school.com"
                   />
                 </div>
                 <div>
@@ -281,15 +292,49 @@ export const UserManagementPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Password</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
                   <input
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
-                    placeholder="Set password"
+                    placeholder="+91 98765 43210"
                   />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Language</label>
+                  <select
+                    value={formData.languagePreference}
+                    onChange={(e) => setFormData({ ...formData, languagePreference: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="en">English</option>
+                    <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full pl-3 pr-10 py-2 border rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
+                      placeholder="Set password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t('users.role')}</label>
@@ -298,12 +343,24 @@ export const UserManagementPage = () => {
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
                   >
-                    <option value="ADMIN">Admin / Principal</option>
-                    <option value="TEACHER">Teacher</option>
-                    <option value="NON_TEACHING_STAFF">Non-Teaching Staff</option>
+                    {['SUPER_ADMIN', 'ORGANIZER'].includes(currentUser?.role) && (
+                      <option value="ADMIN">Admin / Principal</option>
+                    )}
+                    {['SUPER_ADMIN', 'ORGANIZER', 'ADMIN'].includes(currentUser?.role) && (
+                      <>
+                        <option value="TEACHER">Teacher</option>
+                        <option value="NON_TEACHING_STAFF">Non-Teaching Staff</option>
+                      </>
+                    )}
                     <option value="STUDENT">Student</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {currentUser?.role === 'TEACHER'
+                      ? 'Teachers are authorized to provision Student accounts only.'
+                      : currentUser?.role === 'ADMIN'
+                      ? 'Admins can provision Teachers, Staff, and Students.'
+                      : 'Super Admin can provision Admins, Teachers, Staff, and Students.'}
+                  </p>
                 </div>
               </div>
 

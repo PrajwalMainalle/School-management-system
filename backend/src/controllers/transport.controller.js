@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import Vehicle from '../models/vehicle.model.js';
 import Driver from '../models/driver.model.js';
 import Route from '../models/route.model.js';
@@ -6,35 +5,25 @@ import TransportAssignment from '../models/transportAssignment.model.js';
 import VehicleMaintenance from '../models/vehicleMaintenance.model.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 
-// Fallback in-memory stores for dev mode when MongoDB is detached
-let mockVehicles = [];
-let mockDrivers = [];
-let mockRoutes = [];
-let mockAssignments = [];
-let mockMaintenances = [];
-
 /**
  * Get Vehicles
  */
-export const getVehicles = async (req, res) => {
+export const getVehicles = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
-    if (mongoose.connection.readyState === 1) {
-      const vehicles = await Vehicle.find({ schoolId });
-      return sendSuccess(res, 'Vehicles fetched successfully', vehicles);
-    }
-    return sendSuccess(res, 'Vehicles fetched (Dev Mode)', mockVehicles);
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    const vehicles = await Vehicle.find({ schoolId });
+    return sendSuccess(res, 'Vehicles fetched successfully', vehicles);
   } catch (err) {
-    return sendError(res, err.message, 500);
+    next(err);
   }
 };
 
 /**
  * Add Vehicle
  */
-export const addVehicle = async (req, res) => {
+export const addVehicle = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const {
       vehicleNumber,
       vehicleType = 'BUS',
@@ -56,84 +45,54 @@ export const addVehicle = async (req, res) => {
       return sendError(res, 'vehicleNumber and capacity are required', null, 400);
     }
 
-    let vehicleDoc;
-    if (mongoose.connection.readyState === 1) {
-      const existing = await Vehicle.findOne({ schoolId, vehicleNumber });
-      if (existing) {
-        return sendError(res, 'Vehicle with this registration number already exists', null, 400);
-      }
-      vehicleDoc = await Vehicle.create({
-        schoolId,
-        vehicleNumber,
-        vehicleType,
-        model,
-        capacity: Number(capacity),
-        registrationDetails,
-        insuranceNumber,
-        insuranceExpiry,
-        fitnessExpiry,
-        pollutionCertificateExpiry,
-        permitExpiry,
-        assignedDriverId,
-        assignedHelperName,
-        assignedHelperPhone,
-        status,
-      });
-    } else {
-      const existing = mockVehicles.find((v) => v.vehicleNumber === vehicleNumber);
-      if (existing) {
-        return sendError(res, 'Vehicle with this registration number already exists', null, 400);
-      }
-      vehicleDoc = {
-        _id: 'vh_' + Date.now(),
-        schoolId,
-        vehicleNumber,
-        vehicleType,
-        model,
-        capacity: Number(capacity),
-        registrationDetails,
-        insuranceNumber,
-        insuranceExpiry,
-        fitnessExpiry,
-        pollutionCertificateExpiry,
-        permitExpiry,
-        assignedDriverId,
-        assignedHelperName,
-        assignedHelperPhone,
-        status,
-        createdAt: new Date().toISOString(),
-      };
-      mockVehicles.push(vehicleDoc);
+    const existing = await Vehicle.findOne({ schoolId, vehicleNumber });
+    if (existing) {
+      return sendError(res, 'Vehicle with this registration number already exists', null, 400);
     }
+
+    const vehicleDoc = await Vehicle.create({
+      schoolId,
+      vehicleNumber,
+      vehicleType,
+      model,
+      capacity: Number(capacity),
+      registrationDetails,
+      insuranceNumber,
+      insuranceExpiry,
+      fitnessExpiry,
+      pollutionCertificateExpiry,
+      permitExpiry,
+      assignedDriverId,
+      assignedHelperName,
+      assignedHelperPhone,
+      status,
+    });
 
     return sendSuccess(res, 'Vehicle added successfully', vehicleDoc, 201);
   } catch (err) {
-    return sendError(res, err.message, 500);
+    next(err);
   }
 };
 
 /**
  * Get Drivers
  */
-export const getDrivers = async (req, res) => {
+export const getDrivers = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
-    if (mongoose.connection.readyState === 1) {
-      const drivers = await Driver.find({ schoolId });
-      return sendSuccess(res, 'Drivers fetched successfully', drivers);
-    }
-    return sendSuccess(res, 'Drivers fetched (Dev Mode)', mockDrivers);
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    const drivers = await Driver.find({ schoolId });
+    return sendSuccess(res, 'Drivers fetched successfully', drivers);
   } catch (err) {
-    return sendError(res, err.message, 500);
+    next(err);
   }
 };
 
 /**
  * Add Driver
  */
-export const addDriver = async (req, res) => {
+export const addDriver = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const {
       name,
       phone,
@@ -150,76 +109,50 @@ export const addDriver = async (req, res) => {
       return sendError(res, 'name, phone, licenseNumber, and licenseExpiry are required', null, 400);
     }
 
-    let driverDoc;
-    if (mongoose.connection.readyState === 1) {
-      const existing = await Driver.findOne({ schoolId, licenseNumber });
-      if (existing) {
-        return sendError(res, 'Driver with this license number already exists', null, 400);
-      }
-      driverDoc = await Driver.create({
-        schoolId,
-        driverId: 'DRV-' + Date.now().toString().slice(-6),
-        name,
-        phone,
-        address,
-        licenseNumber,
-        licenseCategory,
-        licenseExpiry,
-        joiningDate,
-        assignedVehicleId,
-        status,
-      });
-    } else {
-      const existing = mockDrivers.find((d) => d.licenseNumber === licenseNumber);
-      if (existing) {
-        return sendError(res, 'Driver with this license number already exists', null, 400);
-      }
-      driverDoc = {
-        _id: 'drv_' + Date.now(),
-        schoolId,
-        driverId: 'DRV-' + Date.now().toString().slice(-6),
-        name,
-        phone,
-        address,
-        licenseNumber,
-        licenseCategory,
-        licenseExpiry,
-        joiningDate,
-        assignedVehicleId,
-        status,
-        createdAt: new Date().toISOString(),
-      };
-      mockDrivers.push(driverDoc);
+    const existing = await Driver.findOne({ schoolId, licenseNumber });
+    if (existing) {
+      return sendError(res, 'Driver with this license number already exists', null, 400);
     }
+
+    const driverDoc = await Driver.create({
+      schoolId,
+      driverId: 'DRV-' + Date.now().toString().slice(-6),
+      name,
+      phone,
+      address,
+      licenseNumber,
+      licenseCategory,
+      licenseExpiry,
+      joiningDate,
+      assignedVehicleId,
+      status,
+    });
 
     return sendSuccess(res, 'Driver created successfully', driverDoc, 201);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Get Routes
  */
-export const getRoutes = async (req, res) => {
+export const getRoutes = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
-    if (mongoose.connection.readyState === 1) {
-      const routes = await Route.find({ schoolId });
-      return sendSuccess(res, 'Routes fetched successfully', routes);
-    }
-    return sendSuccess(res, 'Routes fetched (Dev Mode)', mockRoutes);
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    const routes = await Route.find({ schoolId });
+    return sendSuccess(res, 'Routes fetched successfully', routes);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Add Route
  */
-export const addRoute = async (req, res) => {
+export const addRoute = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const {
       routeName,
       routeCode,
@@ -235,63 +168,42 @@ export const addRoute = async (req, res) => {
       return sendError(res, 'routeName, routeCode, startPoint, and destination are required', null, 400);
     }
 
-    let routeDoc;
-    if (mongoose.connection.readyState === 1) {
-      const existing = await Route.findOne({ schoolId, routeCode });
-      if (existing) {
-        return sendError(res, 'Route with this code already exists', null, 400);
-      }
-      routeDoc = await Route.create({
-        schoolId,
-        routeName,
-        routeCode,
-        startPoint,
-        destination,
-        vehicleId,
-        driverId,
-        stops,
-        status,
-      });
-    } else {
-      const existing = mockRoutes.find((r) => r.routeCode === routeCode);
-      if (existing) {
-        return sendError(res, 'Route with this code already exists', null, 400);
-      }
-      routeDoc = {
-        _id: 'rt_' + Date.now(),
-        schoolId,
-        routeName,
-        routeCode,
-        startPoint,
-        destination,
-        vehicleId,
-        driverId,
-        stops,
-        status,
-        createdAt: new Date().toISOString(),
-      };
-      mockRoutes.push(routeDoc);
+    const existing = await Route.findOne({ schoolId, routeCode });
+    if (existing) {
+      return sendError(res, 'Route with this code already exists', null, 400);
     }
+
+    const routeDoc = await Route.create({
+      schoolId,
+      routeName,
+      routeCode,
+      startPoint,
+      destination,
+      vehicleId,
+      driverId,
+      stops,
+      status,
+    });
 
     return sendSuccess(res, 'Transport route created successfully', routeDoc, 201);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Assign Student to Transport Route with Business Rule Validation
  */
-export const assignStudentTransport = async (req, res) => {
+export const assignStudentTransport = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const {
       studentId,
       routeId,
       pickupStopName,
       dropStopName,
       monthlyFare = 0,
-      academicYearId = 'ay_2026_27',
+      academicYearId = 'AY_2026_27',
       startDate = new Date().toISOString().split('T')[0],
       endDate = '',
     } = req.body;
@@ -300,176 +212,110 @@ export const assignStudentTransport = async (req, res) => {
       return sendError(res, 'studentId, routeId, pickupStopName, and dropStopName are required', null, 400);
     }
 
-    let targetRoute, targetVehicle;
-    if (mongoose.connection.readyState === 1) {
-      // 1. Check Route & Vehicle
-      targetRoute = await Route.findById(routeId);
-      if (!targetRoute) {
-        return sendError(res, 'Target transport route not found', null, 404);
-      }
-
-      if (targetRoute.vehicleId) {
-        targetVehicle = await Vehicle.findById(targetRoute.vehicleId);
-        if (targetVehicle && targetVehicle.status !== 'ACTIVE') {
-          return sendError(res, 'Assigned vehicle for this route is currently not active', null, 400);
-        }
-      }
-
-      // 2. Prevent Duplicate Active Assignment
-      const existingAssign = await TransportAssignment.findOne({
-        schoolId,
-        studentId,
-        academicYearId,
-        status: 'ACTIVE',
-      });
-      if (existingAssign) {
-        return sendError(res, 'Student already has an active transport assignment for this academic session', null, 400);
-      }
-
-      // 3. Prevent Vehicle Over-Capacity
-      if (targetVehicle) {
-        const activeCountOnRoute = await TransportAssignment.countDocuments({
-          schoolId,
-          routeId,
-          status: 'ACTIVE',
-        });
-        if (activeCountOnRoute >= targetVehicle.capacity) {
-          return sendError(res, `Vehicle capacity reached! Maximum capacity is ${targetVehicle.capacity} passengers.`, null, 400);
-        }
-      }
-
-      // Create Assignment
-      const assignmentDoc = await TransportAssignment.create({
-        schoolId,
-        academicYearId,
-        studentId,
-        routeId,
-        pickupStopName,
-        dropStopName,
-        monthlyFare: Number(monthlyFare),
-        startDate,
-        endDate,
-        status: 'ACTIVE',
-      });
-
-      return sendSuccess(res, 'Student assigned to transport route successfully', assignmentDoc, 201);
-    } else {
-      // Dev In-Memory Mode
-      targetRoute = mockRoutes.find((r) => r._id === routeId || r.routeCode === routeId);
-      const existingAssign = mockAssignments.find(
-        (a) => a.studentId === studentId && a.status === 'ACTIVE'
-      );
-      if (existingAssign) {
-        return sendError(res, 'Student already has an active transport assignment for this academic session', null, 400);
-      }
-
-      if (targetRoute && targetRoute.vehicleId) {
-        targetVehicle = mockVehicles.find((v) => v._id === targetRoute.vehicleId);
-        if (targetVehicle) {
-          const countOnRoute = mockAssignments.filter((a) => a.routeId === routeId && a.status === 'ACTIVE').length;
-          if (countOnRoute >= targetVehicle.capacity) {
-            return sendError(res, `Vehicle capacity reached! Maximum capacity is ${targetVehicle.capacity} passengers.`, null, 400);
-          }
-        }
-      }
-
-      const assignmentDoc = {
-        _id: 'ta_' + Date.now(),
-        schoolId,
-        academicYearId,
-        studentId,
-        routeId,
-        pickupStopName,
-        dropStopName,
-        monthlyFare: Number(monthlyFare),
-        startDate,
-        endDate,
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-      };
-      mockAssignments.push(assignmentDoc);
-
-      return sendSuccess(res, 'Student assigned to transport route successfully (Dev Mode)', assignmentDoc, 201);
+    const targetRoute = await Route.findById(routeId);
+    if (!targetRoute) {
+      return sendError(res, 'Target transport route not found', null, 404);
     }
+
+    let targetVehicle;
+    if (targetRoute.vehicleId) {
+      targetVehicle = await Vehicle.findById(targetRoute.vehicleId);
+      if (targetVehicle && targetVehicle.status !== 'ACTIVE') {
+        return sendError(res, 'Assigned vehicle for this route is currently not active', null, 400);
+      }
+    }
+
+    const existingAssign = await TransportAssignment.findOne({
+      schoolId,
+      studentId,
+      academicYearId,
+      status: 'ACTIVE',
+    });
+    if (existingAssign) {
+      return sendError(res, 'Student already has an active transport assignment for this academic session', null, 400);
+    }
+
+    if (targetVehicle) {
+      const activeCountOnRoute = await TransportAssignment.countDocuments({
+        schoolId,
+        routeId,
+        status: 'ACTIVE',
+      });
+      if (activeCountOnRoute >= targetVehicle.capacity) {
+        return sendError(res, `Vehicle capacity reached! Maximum capacity is ${targetVehicle.capacity} passengers.`, null, 400);
+      }
+    }
+
+    const assignmentDoc = await TransportAssignment.create({
+      schoolId,
+      academicYearId,
+      studentId,
+      routeId,
+      pickupStopName,
+      dropStopName,
+      monthlyFare: Number(monthlyFare),
+      startDate,
+      endDate,
+      status: 'ACTIVE',
+    });
+
+    return sendSuccess(res, 'Student assigned to transport route successfully', assignmentDoc, 201);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Get Assignments
  */
-export const getAssignments = async (req, res) => {
+export const getAssignments = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
-    if (mongoose.connection.readyState === 1) {
-      const assignments = await TransportAssignment.find({ schoolId });
-      return sendSuccess(res, 'Transport assignments fetched successfully', assignments);
-    }
-    return sendSuccess(res, 'Transport assignments fetched (Dev Mode)', mockAssignments);
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    const assignments = await TransportAssignment.find({ schoolId });
+    return sendSuccess(res, 'Transport assignments fetched successfully', assignments);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Get Vehicle Maintenances
  */
-export const getMaintenances = async (req, res) => {
+export const getMaintenances = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
-    if (mongoose.connection.readyState === 1) {
-      const logs = await VehicleMaintenance.find({ schoolId });
-      return sendSuccess(res, 'Vehicle maintenance logs fetched', logs);
-    }
-    return sendSuccess(res, 'Vehicle maintenance logs fetched (Dev Mode)', mockMaintenances);
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    const logs = await VehicleMaintenance.find({ schoolId });
+    return sendSuccess(res, 'Vehicle maintenance logs fetched', logs);
   } catch (err) {
-    return sendError(res, err.message, null, 500);
+    next(err);
   }
 };
 
 /**
  * Add Vehicle Maintenance Log
  */
-export const addMaintenance = async (req, res) => {
+export const addMaintenance = async (req, res, next) => {
   try {
-    const schoolId = req.user?.schoolId || 'SCHOOL_GREENWOOD_MAIN';
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const { vehicleId, maintenanceType = 'SERVICE', cost, description = '', serviceDate, nextServiceDueDate = '', performedBy = '' } = req.body;
 
     if (!vehicleId || !cost || !serviceDate) {
       return sendError(res, 'vehicleId, cost, and serviceDate are required', null, 400);
     }
 
-    let logDoc;
-    if (mongoose.connection.readyState === 1) {
-      logDoc = await VehicleMaintenance.create({
-        schoolId,
-        vehicleId,
-        maintenanceType,
-        cost: Number(cost),
-        description,
-        serviceDate,
-        nextServiceDueDate,
-        performedBy,
-      });
-    } else {
-      logDoc = {
-        _id: 'vm_' + Date.now(),
-        schoolId,
-        vehicleId,
-        maintenanceType,
-        cost: Number(cost),
-        description,
-        serviceDate,
-        nextServiceDueDate,
-        performedBy,
-        createdAt: new Date().toISOString(),
-      };
-      mockMaintenances.push(logDoc);
-    }
+    const logDoc = await VehicleMaintenance.create({
+      schoolId,
+      vehicleId,
+      maintenanceType,
+      cost: Number(cost),
+      description,
+      serviceDate,
+      nextServiceDueDate,
+      performedBy,
+    });
 
     return sendSuccess(res, 'Vehicle maintenance log added successfully', logDoc, 201);
   } catch (err) {
-    return sendError(res, err.message, 500);
+    next(err);
   }
 };

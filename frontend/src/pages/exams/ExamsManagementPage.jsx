@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   FileCheck,
   Plus,
@@ -20,6 +21,7 @@ import {
 
 export default function ExamsManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('exams'); // 'exams' | 'marks' | 'results' | 'scales'
 
   // Data States
@@ -116,8 +118,8 @@ export default function ExamsManagementPage() {
         classId: examFormData.classId,
         sectionId: examFormData.sectionId,
         gradingScaleId: examFormData.gradingScaleId,
-        schoolId: 'SCHOOL_GREENWOOD_MAIN',
-        branchId: 'BRANCH_MAIN_CAMPUS',
+        schoolId: user?.schoolId || '',
+        branchId: user?.branchId || '',
         academicYearId: 'ay_2026_27',
         subjects: [
           {

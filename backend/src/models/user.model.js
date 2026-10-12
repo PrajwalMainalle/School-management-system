@@ -66,12 +66,12 @@ const userSchema = new mongoose.Schema(
     },
     schoolId: {
       type: String,
-      default: 'SCHOOL_GREENWOOD_MAIN',
+      default: 'SCHOOL_MAIN',
       index: true,
     },
     branchId: {
       type: String,
-      default: 'BRANCH_MAIN_CAMPUS',
+      default: 'BRANCH_MAIN',
       index: true,
     },
     lastLogin: {

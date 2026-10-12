@@ -51,6 +51,17 @@ const admissionSchema = new mongoose.Schema(
     },
     remarks: String,
     allocatedSectionId: String,
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      pincode: String,
+    },
+    previousSchoolDetails: {
+      schoolName: String,
+      lastGrade: String,
+      tcNumber: String,
+    },
     documentsSubmitted: [
       {
         documentType: String, // Birth Certificate, Transfer Certificate, Aadhar

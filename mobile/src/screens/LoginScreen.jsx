@@ -4,8 +4,8 @@ import { colors } from '../theme/colors';
 import { mobileAuthService } from '../services/authService';
 
 export default function LoginScreen({ onLoginSuccess, lang, toggleLang }) {
-  const [identifier, setIdentifier] = useState('superadmin@greenwood.edu');
-  const [password, setPassword] = useState('SuperAdmin@123');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -34,7 +34,7 @@ export default function LoginScreen({ onLoginSuccess, lang, toggleLang }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>🌱 Greenwood ERP</Text>
+        <Text style={styles.logo}>🌱 School ERP</Text>
         <Text style={styles.subtitle}>
           {lang === 'en' ? 'Mobile Education Portal' : 'ಮೊಬೈಲ್ ಶಿಕ್ಷಣ ಪೋರ್ಟಲ್'}
         </Text>
@@ -51,7 +51,7 @@ export default function LoginScreen({ onLoginSuccess, lang, toggleLang }) {
             style={styles.input}
             value={identifier}
             onChangeText={setIdentifier}
-            placeholder="e.g. superadmin@greenwood.edu"
+            placeholder="e.g. superadmin or user@school.com"
             autoCapitalize="none"
           />
         </View>

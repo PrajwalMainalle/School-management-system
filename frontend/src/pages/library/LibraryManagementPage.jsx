@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   Library,
   Plus,
@@ -18,6 +19,7 @@ import {
 
 export default function LibraryManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'circulation' | 'overdue'
 
   // Data States
@@ -100,7 +102,7 @@ export default function LibraryManagementPage() {
         },
         body: JSON.stringify({
           ...bookFormData,
-          schoolId: 'SCHOOL_GREENWOOD_MAIN',
+          schoolId: user?.schoolId || '',
         }),
       });
 
@@ -144,7 +146,7 @@ export default function LibraryManagementPage() {
           borrowerType: issueFormData.borrowerType,
           borrowerId: issueFormData.borrowerId,
           daysToReturn: Number(issueFormData.daysToReturn),
-          schoolId: 'SCHOOL_GREENWOOD_MAIN',
+          schoolId: user?.schoolId || '',
         }),
       });
 

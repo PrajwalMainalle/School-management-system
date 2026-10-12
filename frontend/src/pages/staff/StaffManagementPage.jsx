@@ -3,7 +3,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { Briefcase, UserPlus, Search, Filter, ShieldCheck, RefreshCw, Key } from 'lucide-react';
+import { Briefcase, UserPlus, Search, Filter, ShieldCheck, RefreshCw, Key, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 export const StaffManagementPage = () => {
@@ -15,13 +15,17 @@ export const StaffManagementPage = () => {
   const [search, setSearch] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    password: '',
     department: 'ACCOUNTING',
     designation: 'Accountant',
+    joiningDate: new Date().toISOString().split('T')[0],
+    status: 'ACTIVE',
     permissions: ['fees:read', 'fees:write'],
   });
 
@@ -53,7 +57,7 @@ export const StaffManagementPage = () => {
       const res = await axios.post('/api/staff', form);
       if (res.data.success) {
         setShowAddModal(false);
-        setForm({ firstName: '', lastName: '', email: '', phone: '', department: 'ACCOUNTING', designation: 'Accountant', permissions: ['fees:read'] });
+        setForm({ firstName: '', lastName: '', email: '', phone: '', password: '', department: 'ACCOUNTING', designation: 'Accountant', permissions: ['fees:read'] });
         fetchData();
       }
     } catch (err) {
@@ -216,6 +220,8 @@ export const StaffManagementPage = () => {
                     <option value="ACCOUNTING">Accounting</option>
                     <option value="LIBRARY">Library</option>
                     <option value="TRANSPORT">Transport</option>
+                    <option value="HOSTEL">Hostel</option>
+                    <option value="INVENTORY">Inventory</option>
                     <option value="RECEPTION">Reception</option>
                     <option value="SECURITY">Security</option>
                     <option value="SUPPORT">Support</option>
@@ -224,6 +230,42 @@ export const StaffManagementPage = () => {
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Designation</label>
                   <input type="text" required value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="e.g. Chief Accountant" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Staff Portal Password (Optional - Defaults to Staff@123)</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="w-full pl-3 pr-10 py-2 border rounded-lg text-xs"
+                    placeholder="Set initial password for staff portal login"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Joining Date</label>
+                  <input type="date" value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs">
+                    <option value="ACTIVE">Active</option>
+                    <option value="ON_LEAVE">On Leave</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
                 </div>
               </div>
 

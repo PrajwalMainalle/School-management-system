@@ -8,6 +8,7 @@ import {
   collectPayment,
   getFinancialSummary,
   getFinanceConfig,
+  updateFinanceConfig,
   getAuditLogs,
 } from '../controllers/fee.controller.js';
 
@@ -23,6 +24,7 @@ router.get('/invoices', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON
 router.post('/payments', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), collectPayment);
 router.get('/summary', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getFinancialSummary);
 router.get('/config', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getFinanceConfig);
+router.put('/config', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN'), updateFinanceConfig);
 router.get('/audit-logs', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getAuditLogs);
 
 export default router;

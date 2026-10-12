@@ -6,7 +6,6 @@ import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import SystemHealthPage from './pages/SystemHealthPage';
 import UserManagementPage from './pages/users/UserManagementPage';
 import ProfilePage from './pages/users/ProfilePage';
 import AcademicStructurePage from './pages/academics/AcademicStructurePage';
@@ -27,6 +26,8 @@ import CalendarPage from './pages/communication/CalendarPage';
 import NoticesPage from './pages/communication/NoticesPage';
 import MeetingRoomPage from './pages/meetings/MeetingRoomPage';
 import ReportsPage from './pages/reports/ReportsPage';
+import FinanceManagementPage from './pages/finance/FinanceManagementPage';
+import SystemSettingsPage from './pages/settings/SystemSettingsPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 
 export const App = () => {
@@ -44,8 +45,14 @@ export const App = () => {
               element={
                 <MainLayout>
                   <Routes>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/system-health" element={<SystemHealthPage />} />
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <DashboardPage />
+                        </ProtectedRoute>
+                      }
+                    />
                     
                     {/* Protected User Management Route */}
                     <Route
@@ -154,7 +161,14 @@ export const App = () => {
                         </ProtectedRoute>
                       }
                     />
-                    <Route path="/finance" element={<PlaceholderPage title="School Finance" />} />
+                    <Route
+                      path="/finance"
+                      element={
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF']}>
+                          <FinanceManagementPage />
+                        </ProtectedRoute>
+                      }
+                    />
                     {/* Phase 11 HR, Staff Payroll & Attendance LOP Engine */}
                     <Route
                       path="/payroll"
@@ -235,7 +249,14 @@ export const App = () => {
                         </ProtectedRoute>
                       }
                     />
-                    <Route path="/settings" element={<PlaceholderPage title="System Settings" />} />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN']}>
+                          <SystemSettingsPage />
+                        </ProtectedRoute>
+                      }
+                    />
                   </Routes>
                 </MainLayout>
               }

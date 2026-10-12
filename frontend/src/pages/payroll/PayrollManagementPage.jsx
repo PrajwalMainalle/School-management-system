@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   DollarSign,
   Plus,
@@ -17,6 +18,7 @@ import {
 
 export default function PayrollManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('payroll'); // 'payroll' | 'payslips' | 'structures'
 
   // Data States
@@ -98,7 +100,7 @@ export default function PayrollManagementPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          schoolId: 'SCHOOL_GREENWOOD_MAIN',
+          schoolId: user?.schoolId || '',
           staffId: payrollForm.staffId,
           month: Number(payrollForm.month),
           year: Number(payrollForm.year),

@@ -3,7 +3,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { Users, UserPlus, Search, ShieldCheck, RefreshCw, Award, BookOpen, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, Search, ShieldCheck, RefreshCw, Award, BookOpen, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 export const TeacherManagementPage = () => {
@@ -18,14 +18,18 @@ export const TeacherManagementPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    password: '',
     qualification: 'M.Sc Mathematics, B.Ed',
     specialization: 'Mathematics',
+    joiningDate: new Date().toISOString().split('T')[0],
+    status: 'ACTIVE',
   });
 
   const [assignForm, setAssignForm] = useState({ classId: '', sectionId: '' });
@@ -204,7 +208,7 @@ export const TeacherManagementPage = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t('teachers.email')}</label>
-                  <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="teacher@greenwood.edu" />
+                  <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="teacher@school.com" />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">{t('teachers.phone')}</label>
@@ -220,6 +224,42 @@ export const TeacherManagementPage = () => {
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">{t('teachers.specialization')}</label>
                 <input type="text" required value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="Mathematics" />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Teacher Portal Password (Optional - Defaults to Teacher@123)</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="w-full pl-3 pr-10 py-2 border rounded-lg text-xs"
+                    placeholder="Set initial password for teacher login"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Joining Date</label>
+                  <input type="date" value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Status</label>
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-xs">
+                    <option value="ACTIVE">Active</option>
+                    <option value="ON_LEAVE">On Leave</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3">

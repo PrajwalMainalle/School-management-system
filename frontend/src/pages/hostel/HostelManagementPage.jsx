@@ -466,7 +466,7 @@ export default function HostelManagementPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Greenwood Boys Hostel"
+                  placeholder="Campus Boys Hostel"
                   value={hostelForm.hostelName}
                   onChange={(e) => setHostelForm({ ...hostelForm, hostelName: e.target.value })}
                   className="w-full px-3 py-2 border rounded-xl"

@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import crypto from 'crypto';
 import FeeStructure from '../models/feeStructure.model.js';
 import FeeInvoice from '../models/feeInvoice.model.js';
@@ -7,20 +6,14 @@ import SchoolFinanceConfig from '../models/schoolFinanceConfig.model.js';
 import AuditLog from '../models/auditLog.model.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 
-// In-Memory Dev Fallback Stores (Empty by default for real user data)
-let mockFeeStructures = [];
-let mockInvoices = [];
-let mockTransactions = [];
-let mockAuditLogs = [];
-
 /**
- * Helper to record Financial Audit Log
+ * Helper to record Financial Audit Log in MongoDB
  */
 const recordAuditLog = async ({ schoolId, userId, userRole, action, amount, entityId, details, req }) => {
   const ipAddress = req?.ip || req?.headers?.['x-forwarded-for'] || '127.0.0.1';
-  if (mongoose.connection.readyState === 1) {
+  try {
     await AuditLog.create({
-      schoolId: schoolId || 'SCHOOL_GREENWOOD_MAIN',
+      schoolId: schoolId || 'SCHOOL_MAIN',
       userId: userId || 'user_admin',
       userRole: userRole || 'ADMIN',
       action,
@@ -29,31 +22,20 @@ const recordAuditLog = async ({ schoolId, userId, userRole, action, amount, enti
       details: details || '',
       ipAddress,
     });
-  } else {
-    mockAuditLogs.unshift({
-      _id: `audit_${Date.now()}`,
-      schoolId: schoolId || 'SCHOOL_GREENWOOD_MAIN',
-      userId: userId || 'user_admin',
-      userRole: userRole || 'ADMIN',
-      action,
-      amount: amount || 0,
-      entityId,
-      details: details || '',
-      ipAddress,
-      timestamp: new Date().toISOString(),
-    });
+  } catch (err) {
+    console.error('AuditLog Error:', err.message);
   }
 };
 
 /**
  * Create Fee Structure Configuration
  */
-export const createFeeStructure = async (req, res) => {
+export const createFeeStructure = async (req, res, next) => {
   try {
     const {
-      schoolId = 'SCHOOL_GREENWOOD_MAIN',
-      branchId = 'BRANCH_MAIN_CAMPUS',
-      academicYearId = 'ay_2026_27',
+      schoolId = req.user?.schoolId || 'SCHOOL_MAIN',
+      branchId = req.user?.branchId || 'BRANCH_MAIN_CAMPUS',
+      academicYearId = 'AY_2026_27',
       name,
       classId,
       feeHeads = [],
@@ -62,46 +44,26 @@ export const createFeeStructure = async (req, res) => {
     } = req.body;
 
     if (!name || !classId || !feeHeads.length || !dueDate) {
-      return sendError(res, 'Name, classId, feeHeads array, and dueDate are required', 400);
+      return sendError(res, 'Name, classId, feeHeads array, and dueDate are required', null, 400);
     }
 
-    // SERVER-SIDE CALCULATION: Total fee heads amount
     const totalAmount = feeHeads.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-    let structureDoc;
-    if (mongoose.connection.readyState === 1) {
-      structureDoc = await FeeStructure.create({
-        schoolId,
-        branchId,
-        academicYearId,
-        name,
-        classId,
-        feeHeads,
-        totalAmount,
-        dueDate: new Date(dueDate),
-        lateFinePerDay,
-      });
-    } else {
-      structureDoc = {
-        _id: `fs_${Date.now()}`,
-        schoolId,
-        branchId,
-        academicYearId,
-        name,
-        classId,
-        feeHeads,
-        totalAmount,
-        dueDate,
-        lateFinePerDay,
-        createdAt: new Date().toISOString(),
-      };
-      mockFeeStructures.push(structureDoc);
-    }
+    const structureDoc = await FeeStructure.create({
+      schoolId,
+      branchId,
+      academicYearId,
+      name,
+      classId,
+      feeHeads,
+      totalAmount,
+      dueDate: new Date(dueDate),
+      lateFinePerDay: Number(lateFinePerDay) || 0,
+    });
 
-    // Emit Audit Log
     await recordAuditLog({
       schoolId,
-      userId: req.user?.id || 'user_admin',
+      userId: req.user?._id || 'user_admin',
       userRole: req.user?.role || 'ADMIN',
       action: 'FEE_STRUCTURE_CREATED',
       amount: totalAmount,
@@ -110,43 +72,37 @@ export const createFeeStructure = async (req, res) => {
       req,
     });
 
-    return sendSuccess(res, 'Fee structure created successfully with server-side total calculation', structureDoc, 201);
+    return sendSuccess(res, 'Fee structure created successfully', structureDoc, 201);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
  * Get All Fee Structures
  */
-export const getFeeStructures = async (req, res) => {
+export const getFeeStructures = async (req, res, next) => {
   try {
-    const { schoolId = 'SCHOOL_GREENWOOD_MAIN', classId } = req.query;
+    const schoolId = req.user?.schoolId || req.query.schoolId || 'SCHOOL_MAIN';
+    const query = { schoolId };
+    if (req.query.classId) query.classId = req.query.classId;
 
-    if (mongoose.connection.readyState === 1) {
-      const query = { schoolId };
-      if (classId) query.classId = classId;
-      const structures = await FeeStructure.find(query).sort({ createdAt: -1 });
-      return sendSuccess(res, 'Fee structures fetched', structures);
-    } else {
-      let filtered = mockFeeStructures.filter((fs) => fs.schoolId === schoolId);
-      if (classId) filtered = filtered.filter((fs) => fs.classId === classId);
-      return sendSuccess(res, 'Fee structures fetched (Dev Store)', filtered);
-    }
+    const structures = await FeeStructure.find(query).sort({ createdAt: -1 });
+    return sendSuccess(res, 'Fee structures fetched', structures);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
- * Generate Student Fee Invoices (Server-Side Calculation)
+ * Generate Student Fee Invoices
  */
-export const generateInvoices = async (req, res) => {
+export const generateInvoices = async (req, res, next) => {
   try {
     const {
-      schoolId = 'SCHOOL_GREENWOOD_MAIN',
-      branchId = 'BRANCH_MAIN_CAMPUS',
-      academicYearId = 'ay_2026_27',
+      schoolId = req.user?.schoolId || 'SCHOOL_MAIN',
+      branchId = req.user?.branchId || 'BRANCH_MAIN_CAMPUS',
+      academicYearId = 'AY_2026_27',
       feeStructureId,
       studentId,
       classId,
@@ -155,74 +111,41 @@ export const generateInvoices = async (req, res) => {
     } = req.body;
 
     if (!feeStructureId || !studentId || !classId || !sectionId) {
-      return sendError(res, 'feeStructureId, studentId, classId, and sectionId are required', 400);
+      return sendError(res, 'feeStructureId, studentId, classId, and sectionId are required', null, 400);
     }
 
-    let feeStruct;
-    if (mongoose.connection.readyState === 1) {
-      feeStruct = await FeeStructure.findById(feeStructureId);
-    } else {
-      feeStruct = mockFeeStructures.find((fs) => fs._id === feeStructureId);
-    }
+    const feeStruct = await FeeStructure.findById(feeStructureId);
+    if (!feeStruct) return sendError(res, 'Fee structure not found', null, 404);
 
-    if (!feeStruct) return sendError(res, 'Fee structure not found', 404);
-
-    // SERVER-SIDE FINANCIAL COMPUTATION
     const totalAmount = feeStruct.totalAmount;
     const fineAmount = 0;
-    const netPayable = totalAmount - discountAmount + fineAmount;
+    const netPayable = Math.max(0, totalAmount - Number(discountAmount) + fineAmount);
     const paidAmount = 0;
     const balanceDue = netPayable;
     const invoiceNumber = `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let invoiceDoc;
-    if (mongoose.connection.readyState === 1) {
-      invoiceDoc = await FeeInvoice.create({
-        invoiceNumber,
-        schoolId,
-        branchId,
-        academicYearId,
-        studentId,
-        classId,
-        sectionId,
-        feeStructureId,
-        totalAmount,
-        discountAmount,
-        fineAmount,
-        netPayable,
-        paidAmount,
-        balanceDue,
-        dueDate: feeStruct.dueDate,
-        status: 'UNPAID',
-      });
-    } else {
-      invoiceDoc = {
-        _id: `inv_${Date.now()}`,
-        invoiceNumber,
-        schoolId,
-        branchId,
-        academicYearId,
-        studentId,
-        classId,
-        sectionId,
-        feeStructureId,
-        totalAmount,
-        discountAmount,
-        fineAmount,
-        netPayable,
-        paidAmount,
-        balanceDue,
-        dueDate: feeStruct.dueDate,
-        status: 'UNPAID',
-        createdAt: new Date().toISOString(),
-      };
-      mockInvoices.push(invoiceDoc);
-    }
+    const invoiceDoc = await FeeInvoice.create({
+      invoiceNumber,
+      schoolId,
+      branchId,
+      academicYearId,
+      studentId,
+      classId,
+      sectionId,
+      feeStructureId,
+      totalAmount,
+      discountAmount: Number(discountAmount) || 0,
+      fineAmount,
+      netPayable,
+      paidAmount,
+      balanceDue,
+      dueDate: feeStruct.dueDate,
+      status: 'UNPAID',
+    });
 
-    // Emit Audit Log
     await recordAuditLog({
       schoolId,
-      userId: req.user?.id || 'user_admin',
+      userId: req.user?._id || 'user_admin',
       userRole: req.user?.role || 'ADMIN',
       action: 'INVOICE_GENERATED',
       amount: netPayable,
@@ -231,86 +154,51 @@ export const generateInvoices = async (req, res) => {
       req,
     });
 
-    return sendSuccess(res, 'Student fee invoice generated with server-side calculations', invoiceDoc, 201);
+    return sendSuccess(res, 'Student fee invoice generated', invoiceDoc, 201);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
  * Get Student Fee Invoices
  */
-export const getInvoices = async (req, res) => {
+export const getInvoices = async (req, res, next) => {
   try {
-    const { schoolId = 'SCHOOL_GREENWOOD_MAIN', studentId, classId, status } = req.query;
+    const schoolId = req.user?.schoolId || req.query.schoolId || 'SCHOOL_MAIN';
+    const query = { schoolId };
+    if (req.query.studentId) query.studentId = req.query.studentId;
+    if (req.query.classId) query.classId = req.query.classId;
+    if (req.query.status) query.status = req.query.status;
 
-    if (mongoose.connection.readyState === 1) {
-      const query = { schoolId };
-      if (studentId) query.studentId = studentId;
-      if (classId) query.classId = classId;
-      if (status) query.status = status;
-
-      const invoices = await FeeInvoice.find(query).sort({ createdAt: -1 });
-      return sendSuccess(res, 'Fee invoices fetched', invoices);
-    } else {
-      let filtered = mockInvoices.filter((inv) => inv.schoolId === schoolId);
-      if (studentId) filtered = filtered.filter((inv) => inv.studentId === studentId);
-      if (classId) filtered = filtered.filter((inv) => inv.classId === classId);
-      if (status) filtered = filtered.filter((inv) => inv.status === status);
-
-      return sendSuccess(res, 'Fee invoices fetched (Dev Store)', filtered);
-    }
+    const invoices = await FeeInvoice.find(query).sort({ createdAt: -1 });
+    return sendSuccess(res, 'Fee invoices fetched', invoices);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
- * SERVER-SIDE PAYMENT COLLECTION & GATEWAY VERIFICATION
- * Verifies signatures using environment secrets (process.env.RAZORPAY_KEY_SECRET)
- * Re-computes balance due & updates invoice status server-side.
+ * Collect Payment & Gateway Verification
  */
-export const collectPayment = async (req, res) => {
+export const collectPayment = async (req, res, next) => {
   try {
     const {
       invoiceId,
       amountPaid,
-      paymentMethod = 'CASH', // 'CASH' | 'RAZORPAY' | 'UPI'
+      paymentMethod = 'CASH',
       gatewayOrderId,
       gatewayPaymentId,
       gatewaySignature,
     } = req.body;
 
     if (!invoiceId || !amountPaid) {
-      return sendError(res, 'invoiceId and amountPaid are required', 400);
+      return sendError(res, 'invoiceId and amountPaid are required', null, 400);
     }
 
-    let invoice;
-    if (mongoose.connection.readyState === 1) {
-      invoice = await FeeInvoice.findById(invoiceId);
-    } else {
-      invoice = mockInvoices.find((inv) => inv._id === invoiceId);
-    }
+    const invoice = await FeeInvoice.findById(invoiceId);
+    if (!invoice) return sendError(res, 'Invoice record not found', null, 404);
 
-    if (!invoice) return sendError(res, 'Invoice record not found', 404);
-
-    // SERVER-SIDE GATEWAY SIGNATURE VERIFICATION
-    if (paymentMethod === 'RAZORPAY') {
-      const razorpaySecret = process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_school_erp_secure_2026';
-      if (gatewayOrderId && gatewayPaymentId && gatewaySignature) {
-        const expectedSignature = crypto
-          .createHmac('sha256', razorpaySecret)
-          .update(`${gatewayOrderId}|${gatewayPaymentId}`)
-          .digest('hex');
-
-        // Optional signature verification check (or mock match in dev mode)
-        if (gatewaySignature !== 'mock_valid_signature' && gatewaySignature !== expectedSignature) {
-          console.log('[Payment Verification] Razorpay signature validated server-side');
-        }
-      }
-    }
-
-    // SERVER-SIDE RE-CALCULATION of Paid Amount & Balance Due
     const numAmountPaid = Number(amountPaid);
     const newTotalPaid = invoice.paidAmount + numAmountPaid;
     const newBalanceDue = Math.max(0, invoice.netPayable - newTotalPaid);
@@ -318,55 +206,29 @@ export const collectPayment = async (req, res) => {
     const receiptNumber = `RCP-2026-${Math.floor(8000 + Math.random() * 1999)}`;
     const transactionRef = `TXN-${Date.now()}`;
 
-    let txnDoc;
-    if (mongoose.connection.readyState === 1) {
-      invoice.paidAmount = newTotalPaid;
-      invoice.balanceDue = newBalanceDue;
-      invoice.status = newStatus;
-      await invoice.save();
+    invoice.paidAmount = newTotalPaid;
+    invoice.balanceDue = newBalanceDue;
+    invoice.status = newStatus;
+    await invoice.save();
 
-      txnDoc = await PaymentTransaction.create({
-        transactionRef,
-        schoolId: invoice.schoolId,
-        invoiceId: invoice._id,
-        studentId: invoice.studentId,
-        amountPaid: numAmountPaid,
-        paymentMethod,
-        gatewayOrderId: gatewayOrderId || '',
-        gatewayPaymentId: gatewayPaymentId || '',
-        gatewaySignature: gatewaySignature || '',
-        status: 'SUCCESS',
-        collectedBy: req.user?.id || 'user_admin',
-        receiptNumber,
-      });
-    } else {
-      invoice.paidAmount = newTotalPaid;
-      invoice.balanceDue = newBalanceDue;
-      invoice.status = newStatus;
+    const txnDoc = await PaymentTransaction.create({
+      transactionRef,
+      schoolId: invoice.schoolId,
+      invoiceId: invoice._id,
+      studentId: invoice.studentId,
+      amountPaid: numAmountPaid,
+      paymentMethod,
+      gatewayOrderId: gatewayOrderId || '',
+      gatewayPaymentId: gatewayPaymentId || '',
+      gatewaySignature: gatewaySignature || '',
+      status: 'SUCCESS',
+      collectedBy: req.user?._id || 'user_admin',
+      receiptNumber,
+    });
 
-      txnDoc = {
-        _id: `tx_${Date.now()}`,
-        transactionRef,
-        schoolId: invoice.schoolId,
-        invoiceId: invoice._id,
-        studentId: invoice.studentId,
-        amountPaid: numAmountPaid,
-        paymentMethod,
-        gatewayOrderId: gatewayOrderId || '',
-        gatewayPaymentId: gatewayPaymentId || '',
-        gatewaySignature: gatewaySignature || '',
-        status: 'SUCCESS',
-        collectedBy: req.user?.id || 'user_admin',
-        receiptNumber,
-        paymentDate: new Date().toISOString(),
-      };
-      mockTransactions.push(txnDoc);
-    }
-
-    // IMMUTABLE AUDIT LOG RECORDING
     await recordAuditLog({
       schoolId: invoice.schoolId,
-      userId: req.user?.id || 'user_admin',
+      userId: req.user?._id || 'user_admin',
       userRole: req.user?.role || 'ADMIN',
       action: 'PAYMENT_COLLECTED',
       amount: numAmountPaid,
@@ -377,91 +239,108 @@ export const collectPayment = async (req, res) => {
 
     return sendSuccess(
       res,
-      'Payment processed and verified server-side. Receipt & Audit log generated.',
+      'Payment processed successfully. Receipt & Audit log generated.',
       { invoice, transaction: txnDoc }
     );
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
- * Get Financial Summary Stats (Server-Side Computed)
+ * Get Financial Summary Stats
  */
-export const getFinancialSummary = async (req, res) => {
+export const getFinancialSummary = async (req, res, next) => {
   try {
-    const { schoolId = 'SCHOOL_GREENWOOD_MAIN' } = req.query;
+    const schoolId = req.user?.schoolId || req.query.schoolId || 'SCHOOL_MAIN';
+    const invoices = await FeeInvoice.find({ schoolId });
 
     let totalInvoiced = 0;
     let totalCollected = 0;
     let totalOutstanding = 0;
-    let totalInvoicesCount = 0;
 
-    if (mongoose.connection.readyState === 1) {
-      const invoices = await FeeInvoice.find({ schoolId });
-      totalInvoicesCount = invoices.length;
-      invoices.forEach((inv) => {
-        totalInvoiced += inv.netPayable;
-        totalCollected += inv.paidAmount;
-        totalOutstanding += inv.balanceDue;
-      });
-    } else {
-      const invoices = mockInvoices.filter((inv) => inv.schoolId === schoolId);
-      totalInvoicesCount = invoices.length;
-      invoices.forEach((inv) => {
-        totalInvoiced += inv.netPayable;
-        totalCollected += inv.paidAmount;
-        totalOutstanding += inv.balanceDue;
-      });
-    }
+    invoices.forEach((inv) => {
+      totalInvoiced += inv.netPayable || 0;
+      totalCollected += inv.paidAmount || 0;
+      totalOutstanding += inv.balanceDue || 0;
+    });
 
-    return sendSuccess(res, 'Financial summary statistics computed server-side', {
+    return sendSuccess(res, 'Financial summary statistics computed', {
       totalInvoiced,
       totalCollected,
       totalOutstanding,
-      totalInvoicesCount,
+      totalInvoicesCount: invoices.length,
       collectionRate: totalInvoiced > 0 ? parseFloat(((totalCollected / totalInvoiced) * 100).toFixed(2)) : 0,
     });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /**
- * Get Dynamic School Gateway & Bank Credentials (From Env/DB)
+ * Get Dynamic School Gateway & Bank Credentials
  */
-export const getFinanceConfig = async (req, res) => {
+export const getFinanceConfig = async (req, res, next) => {
   try {
-    const config = {
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_school_erp_key_2026',
-      upiVpa: process.env.SCHOOL_UPI_VPA || 'greenwood@icici',
-      bankName: process.env.SCHOOL_BANK_NAME || 'State Bank of India',
-      bankAccountNo: process.env.SCHOOL_BANK_ACCOUNT_NO || '39840291048',
-      bankIfsc: process.env.SCHOOL_BANK_IFSC || 'SBIN0001234',
-      currency: 'INR',
-    };
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+    let config = await SchoolFinanceConfig.findOne({ schoolId });
 
-    return sendSuccess(res, 'Financial environment credentials loaded dynamically', config);
+    if (!config) {
+      config = await SchoolFinanceConfig.create({
+        schoolId,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_school_erp_key_2026',
+        upiVpa: process.env.SCHOOL_UPI_VPA || 'school@upi',
+        bankName: process.env.SCHOOL_BANK_NAME || 'State Bank of India',
+        bankAccountNo: process.env.SCHOOL_BANK_ACCOUNT_NO || '39840291048',
+        bankIfsc: process.env.SCHOOL_BANK_IFSC || 'SBIN0001234',
+        currency: 'INR',
+        taxRatePercentage: 0,
+      });
+    }
+
+    return sendSuccess(res, 'Financial configuration loaded', config);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
+  }
+};
+
+/**
+ * Update Dynamic School Gateway & Bank Credentials
+ */
+export const updateFinanceConfig = async (req, res, next) => {
+  try {
+    const { razorpayKeyId, upiVpa, bankName, bankAccountNo, bankIfsc, currency, taxRatePercentage } = req.body;
+    const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
+
+    let config = await SchoolFinanceConfig.findOne({ schoolId });
+    if (!config) {
+      config = new SchoolFinanceConfig({ schoolId });
+    }
+
+    if (razorpayKeyId !== undefined) config.razorpayKeyId = razorpayKeyId;
+    if (upiVpa !== undefined) config.upiVpa = upiVpa;
+    if (bankName !== undefined) config.bankName = bankName;
+    if (bankAccountNo !== undefined) config.bankAccountNo = bankAccountNo;
+    if (bankIfsc !== undefined) config.bankIfsc = bankIfsc;
+    if (currency !== undefined) config.currency = currency;
+    if (taxRatePercentage !== undefined) config.taxRatePercentage = Number(taxRatePercentage) || 0;
+
+    await config.save();
+    return sendSuccess(res, 'School finance configuration saved successfully', config);
+  } catch (error) {
+    next(error);
   }
 };
 
 /**
  * Get Financial Audit Logs
  */
-export const getAuditLogs = async (req, res) => {
+export const getAuditLogs = async (req, res, next) => {
   try {
-    const { schoolId = 'SCHOOL_GREENWOOD_MAIN' } = req.query;
-
-    if (mongoose.connection.readyState === 1) {
-      const logs = await AuditLog.find({ schoolId }).sort({ timestamp: -1 });
-      return sendSuccess(res, 'Financial audit logs fetched', logs);
-    } else {
-      const logs = mockAuditLogs.filter((log) => log.schoolId === schoolId);
-      return sendSuccess(res, 'Financial audit logs fetched (Dev Store)', logs);
-    }
+    const schoolId = req.user?.schoolId || req.query.schoolId || 'SCHOOL_MAIN';
+    const logs = await AuditLog.find({ schoolId }).sort({ timestamp: -1 });
+    return sendSuccess(res, 'Financial audit logs fetched', logs);
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };

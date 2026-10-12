@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout Function
+  // Logout Function - Clears all session data and redirects directly to /login
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -77,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('erp_user');
     localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   // Update user state

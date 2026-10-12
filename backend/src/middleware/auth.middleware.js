@@ -19,21 +19,8 @@ export const protect = async (req, res, next) => {
 
     const decoded = verifyToken(token);
     
-    // Find user in memory or DB
-    let user;
-    if (User.db.readyState === 1) {
-      user = await User.findById(decoded.id).select('-password');
-    } else {
-      // Mock detached mode user if DB disconnected
-      user = {
-        _id: decoded.id,
-        role: decoded.role,
-        email: decoded.email,
-        schoolId: decoded.schoolId,
-        branchId: decoded.branchId,
-        isActive: true,
-      };
-    }
+    // Find user in MongoDB
+    const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
       return sendError(res, 'User session invalid. Please log in again', null, 401);
