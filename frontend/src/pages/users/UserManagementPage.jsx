@@ -40,7 +40,7 @@ export const UserManagementPage = () => {
 
       const res = await axios.get(`/api/users?${queryParams.toString()}`);
       if (res.data && res.data.success) {
-        setUsers(res.data.data.users);
+        setUsers(Array.isArray(res.data.data?.users) ? res.data.data.users : []);
       }
     } catch (err) {
       console.warn('Failed to fetch users:', err.message);
@@ -172,10 +172,10 @@ export const UserManagementPage = () => {
       </div>
 
       {/* Users Data Grid Table */}
-      <Card title={`System Users (${users.length})`}>
+      <Card title={`System Users (${(users || []).length})`}>
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
-        ) : users.length === 0 ? (
+        ) : (users || []).length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-500">No users found matching query.</div>
         ) : (
           <div className="overflow-x-auto">

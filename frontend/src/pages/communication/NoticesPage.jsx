@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Bell, FileText, Plus, Eye, CheckCircle2, AlertCircle, RefreshCw, Send, ShieldAlert } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const NoticesPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [activeTab, setActiveTab] = useState('notices'); // notices, notifications
   const [notices, setNotices] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -28,8 +31,8 @@ const NoticesPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [noticesRes, notifsRes] = await Promise.all([
         axios.get('/api/communication/notices', { headers }),
         axios.get('/api/communication/notifications', { headers }),
@@ -56,9 +59,10 @@ const NoticesPage = () => {
   const handleCreateNotice = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post('/api/communication/notices', noticeForm, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setShowNoticeModal(false);
@@ -105,13 +109,15 @@ const NoticesPage = () => {
               Mark All as Read ({unreadCount})
             </button>
           )}
-          <button
-            onClick={() => setShowNoticeModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Publish Circular
-          </button>
+          {!isStudent && (
+            <button
+              onClick={() => setShowNoticeModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Publish Circular
+            </button>
+          )}
         </div>
       </div>
 
@@ -249,7 +255,7 @@ const NoticesPage = () => {
       </div>
 
       {/* CREATE NOTICE MODAL */}
-      {showNoticeModal && (
+      {!isStudent && showNoticeModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900">Publish Circular Notice</h3>

@@ -63,7 +63,7 @@ export const FinanceManagementPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('erp_token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
       const reqHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
       const [sumRes, cfgRes, invRes, auditRes] = await Promise.all([
@@ -79,11 +79,15 @@ export const FinanceManagementPage = () => {
       if (cfgRes?.data?.success && cfgRes.data.data) {
         setFinanceConfig(cfgRes.data.data);
       }
-      if (invRes?.data?.success && invRes.data.data) {
+      if (invRes?.data?.success && Array.isArray(invRes.data.data)) {
         setInvoices(invRes.data.data);
+      } else {
+        setInvoices([]);
       }
-      if (auditRes?.data?.success && auditRes.data.data) {
+      if (auditRes?.data?.success && Array.isArray(auditRes.data.data)) {
         setAuditLogs(auditRes.data.data);
+      } else {
+        setAuditLogs([]);
       }
     } catch (err) {
       console.warn('Finance data fetch error:', err);
@@ -100,7 +104,7 @@ export const FinanceManagementPage = () => {
     e.preventDefault();
     setSavingConfig(true);
     try {
-      const token = localStorage.getItem('erp_token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
       const reqHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
       const res = await axios.put('/api/fees/config', financeConfig, reqHeaders);
@@ -117,7 +121,7 @@ export const FinanceManagementPage = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter((inv) => {
+  const filteredInvoices = (invoices || []).filter((inv) => {
     const matchesSearch =
       inv.invoiceNumber?.toLowerCase().includes(searchTxn.toLowerCase()) ||
       inv.studentId?.toLowerCase().includes(searchTxn.toLowerCase());

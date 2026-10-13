@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Plus, MapPin, Clock, Tag, Filter, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const CalendarPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,9 +40,10 @@ const CalendarPage = () => {
     try {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get(`/api/communication/events?year=${year}&month=${month}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setEvents(res.data.data || []);
@@ -60,9 +64,10 @@ const CalendarPage = () => {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post('/api/communication/events', eventForm, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setShowEventModal(false);
@@ -132,13 +137,15 @@ const CalendarPage = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowEventModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Event
-          </button>
+          {!isStudent && (
+            <button
+              onClick={() => setShowEventModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Event
+            </button>
+          )}
         </div>
       </div>
 
@@ -230,7 +237,7 @@ const CalendarPage = () => {
       </div>
 
       {/* CREATE EVENT MODAL */}
-      {showEventModal && (
+      {!isStudent && showEventModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900">Schedule School Event</h3>

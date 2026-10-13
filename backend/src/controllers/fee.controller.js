@@ -167,9 +167,17 @@ export const getInvoices = async (req, res, next) => {
   try {
     const schoolId = req.user?.schoolId || req.query.schoolId || 'SCHOOL_MAIN';
     const query = { schoolId };
-    if (req.query.studentId) query.studentId = req.query.studentId;
-    if (req.query.classId) query.classId = req.query.classId;
-    if (req.query.status) query.status = req.query.status;
+    if (req.user?.role === 'STUDENT') {
+      query.$or = [
+        { studentId: String(req.user._id) },
+        { studentId: req.user.username },
+        { studentName: req.user.name },
+      ];
+    } else {
+      if (req.query.studentId) query.studentId = req.query.studentId;
+      if (req.query.classId) query.classId = req.query.classId;
+      if (req.query.status) query.status = req.query.status;
+    }
 
     const invoices = await FeeInvoice.find(query).sort({ createdAt: -1 });
     return sendSuccess(res, 'Fee invoices fetched', invoices);

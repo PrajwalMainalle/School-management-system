@@ -18,9 +18,12 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const ReportsPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [activeModule, setActiveModule] = useState('STUDENT'); // STUDENT, FINANCE, HR, LIBRARY, TRANSPORT, HOSTEL, INVENTORY
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
@@ -37,9 +40,10 @@ const ReportsPage = () => {
   const fetchReportData = async (mod) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get(`/api/analytics/reports?moduleType=${mod}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setReportData(res.data.data || {});
@@ -57,9 +61,10 @@ const ReportsPage = () => {
 
     setIsSearching(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get(`/api/analytics/search?q=${encodeURIComponent(searchQuery.trim())}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setSearchResults(res.data.data || {});
@@ -82,10 +87,12 @@ const ReportsPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <FileBarChart className="w-7 h-7 text-emerald-600" />
-            Centralized Reports, Analytics & Global Search
+            {isStudent ? 'My Academic Performance & Student Analytics' : 'Centralized Reports, Analytics & Global Search'}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Real-time multi-tenant reports, database aggregations, and instant global entity search
+            {isStudent
+              ? 'View your learning trajectory, subject benchmarks, attendance aggregates, and download report summaries.'
+              : 'Real-time multi-tenant reports, database aggregations, and instant global entity search'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -94,7 +101,7 @@ const ReportsPage = () => {
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
           >
             <Download className="w-4 h-4" />
-            Export CSV ({activeModule})
+            {isStudent ? `Download Report (${activeModule})` : `Export CSV (${activeModule})`}
           </button>
         </div>
       </div>
@@ -103,7 +110,7 @@ const ReportsPage = () => {
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
         <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
           <Search className="w-5 h-5 text-emerald-600" />
-          Global ERP Search Bar
+          {isStudent ? 'Search Learning Resources & Subjects' : 'Global ERP Search Bar'}
         </h2>
         <form onSubmit={handleGlobalSearch} className="flex gap-3">
           <div className="relative flex-1">
@@ -112,7 +119,11 @@ const ReportsPage = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search across students, teachers, staff, fees, books, vehicles, hostels, inventory, events..."
+              placeholder={
+                isStudent
+                  ? 'Search across your subjects, library books, homework topics, and notices...'
+                  : 'Search across students, teachers, staff, fees, books, vehicles, hostels, inventory, events...'
+              }
               className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -155,16 +166,23 @@ const ReportsPage = () => {
       </div>
 
       {/* Module Selector Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        {[
-          { key: 'STUDENT', label: 'Students', icon: GraduationCap, color: 'emerald' },
-          { key: 'FINANCE', label: 'Finance', icon: DollarSign, color: 'sky' },
-          { key: 'HR', label: 'HR & Payroll', icon: Briefcase, color: 'indigo' },
-          { key: 'LIBRARY', label: 'Library', icon: BookOpen, color: 'amber' },
-          { key: 'TRANSPORT', label: 'Transport', icon: Bus, color: 'rose' },
-          { key: 'HOSTEL', label: 'Hostel', icon: Home, color: 'teal' },
-          { key: 'INVENTORY', label: 'Inventory', icon: Boxes, color: 'purple' },
-        ].map((item) => {
+      <div className={`grid gap-3 ${isStudent ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7'}`}>
+        {(isStudent
+          ? [
+              { key: 'STUDENT', label: 'Academic Progress', icon: GraduationCap, color: 'emerald' },
+              { key: 'LIBRARY', label: 'Library Reading', icon: BookOpen, color: 'amber' },
+              { key: 'TRANSPORT', label: 'Transport Schedule', icon: Bus, color: 'rose' },
+            ]
+          : [
+              { key: 'STUDENT', label: 'Students', icon: GraduationCap, color: 'emerald' },
+              { key: 'FINANCE', label: 'Finance', icon: DollarSign, color: 'sky' },
+              { key: 'HR', label: 'HR & Payroll', icon: Briefcase, color: 'indigo' },
+              { key: 'LIBRARY', label: 'Library', icon: BookOpen, color: 'amber' },
+              { key: 'TRANSPORT', label: 'Transport', icon: Bus, color: 'rose' },
+              { key: 'HOSTEL', label: 'Hostel', icon: Home, color: 'teal' },
+              { key: 'INVENTORY', label: 'Inventory', icon: Boxes, color: 'purple' },
+            ]
+        ).map((item) => {
           const Icon = item.icon;
           const isSelected = activeModule === item.key;
           return (

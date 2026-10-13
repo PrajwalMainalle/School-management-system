@@ -38,7 +38,7 @@ export const StaffManagementPage = () => {
 
       const res = await axios.get(`/api/staff?${queryParams.toString()}`);
       if (res.data && res.data.success) {
-        setStaffList(res.data.data.staff);
+        setStaffList(Array.isArray(res.data.data?.staff) ? res.data.data.staff : []);
       }
     } catch (err) {
       console.warn('Staff fetch error:', err);
@@ -130,9 +130,11 @@ export const StaffManagementPage = () => {
       </div>
 
       {/* Staff Roster Table */}
-      <Card title={`Non-Teaching Staff Members (${staffList.length})`}>
+      <Card title={`Non-Teaching Staff Members (${(staffList || []).length})`}>
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
+        ) : (staffList || []).length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500">No staff members found matching query.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -147,7 +149,7 @@ export const StaffManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {staffList.map((st) => (
+                {(staffList || []).map((st) => (
                   <tr key={st._id} className="hover:bg-slate-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">

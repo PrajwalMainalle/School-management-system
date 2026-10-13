@@ -70,7 +70,7 @@ export const SystemSettingsPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('erp_token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
       const reqHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
       const [schRes, brRes, yrRes] = await Promise.all([
@@ -87,12 +87,16 @@ export const SystemSettingsPage = () => {
         }));
       }
 
-      if (brRes?.data?.success && brRes.data.data?.branches) {
+      if (brRes?.data?.success && Array.isArray(brRes.data.data?.branches)) {
         setBranches(brRes.data.data.branches);
+      } else {
+        setBranches([]);
       }
 
-      if (yrRes?.data?.success && yrRes.data.data?.academicYears) {
+      if (yrRes?.data?.success && Array.isArray(yrRes.data.data?.academicYears)) {
         setAcademicYears(yrRes.data.data.academicYears);
+      } else {
+        setAcademicYears([]);
       }
     } catch (err) {
       console.warn('Settings fetch warning:', err);
@@ -370,28 +374,34 @@ export const SystemSettingsPage = () => {
           }
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {branches.map((b) => (
-              <div
-                key={b._id}
-                className="p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2 relative"
-              >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-sm text-slate-800">{b.branchName}</h4>
-                  <Badge variant={b.isMainBranch ? 'green' : 'sky'}>
-                    {b.isMainBranch ? 'Main Campus' : 'Branch Campus'}
-                  </Badge>
-                </div>
-
-                <p className="text-xs text-slate-500 font-mono">
-                  Code: <strong className="text-sky-700">{b.branchCode}</strong> • Phone: {b.phone || 'N/A'}
-                </p>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <span>Status: <strong className="text-ecoGreen-700">{b.isActive ? 'Active' : 'Inactive'}</strong></span>
-                  <span className="text-[11px] font-mono">ID: {b._id}</span>
-                </div>
+            {(branches || []).length === 0 ? (
+              <div className="col-span-2 py-8 text-center text-xs text-slate-400">
+                No branch campuses configured yet. Click "Add Campus Branch" to add campus locations.
               </div>
-            ))}
+            ) : (
+              (branches || []).map((b) => (
+                <div
+                  key={b._id}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2 relative"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-slate-800">{b.branchName}</h4>
+                    <Badge variant={b.isMainBranch ? 'green' : 'sky'}>
+                      {b.isMainBranch ? 'Main Campus' : 'Branch Campus'}
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs text-slate-500 font-mono">
+                    Code: <strong className="text-sky-700">{b.branchCode}</strong> • Phone: {b.phone || 'N/A'}
+                  </p>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>Status: <strong className="text-ecoGreen-700">{b.isActive ? 'Active' : 'Inactive'}</strong></span>
+                    <span className="text-[11px] font-mono">ID: {b._id}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       )}
@@ -401,22 +411,28 @@ export const SystemSettingsPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card title="Active Academic Session" subtitle="Current school academic year and term schedule">
             <div className="space-y-4">
-              {academicYears.map((ay) => (
-                <div
-                  key={ay._id}
-                  className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
-                    ay.isCurrent ? 'bg-sky-50 border-sky-300' : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-800">{ay.yearName}</h4>
-                    <p className="text-slate-500 text-[11px] mt-0.5">
-                      {new Date(ay.startDate).toLocaleDateString()} — {new Date(ay.endDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {ay.isCurrent && <Badge variant="green">Current Active Session</Badge>}
+              {(academicYears || []).length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  No academic sessions configured yet.
                 </div>
-              ))}
+              ) : (
+                (academicYears || []).map((ay) => (
+                  <div
+                    key={ay._id}
+                    className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
+                      ay.isCurrent ? 'bg-sky-50 border-sky-300' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-800">{ay.yearName}</h4>
+                      <p className="text-slate-500 text-[11px] mt-0.5">
+                        {ay.startDate ? new Date(ay.startDate).toLocaleDateString() : 'N/A'} — {ay.endDate ? new Date(ay.endDate).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                    {ay.isCurrent && <Badge variant="green">Current Active Session</Badge>}
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 

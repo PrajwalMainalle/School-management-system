@@ -22,7 +22,8 @@ import {
 export default function ExamsManagementPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('exams'); // 'exams' | 'marks' | 'results' | 'scales'
+  const isStudent = user?.role === 'STUDENT';
+  const [activeTab, setActiveTab] = useState(isStudent ? 'results' : 'exams'); // 'exams' | 'marks' | 'results' | 'scales'
 
   // Data States
   const [examsList, setExamsList] = useState([]);
@@ -66,7 +67,7 @@ export default function ExamsManagementPage() {
     ],
   });
 
-  const token = localStorage.getItem('erp_token');
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
 
   // Fetch Data
   const fetchData = async () => {
@@ -76,22 +77,34 @@ export default function ExamsManagementPage() {
       const exRes = await fetch('/api/exams', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const exJson = await exRes.json();
-      if (exJson.success) setExamsList(exJson.data);
+      const exJson = await exRes.json().catch(() => ({}));
+      if (exJson?.success) {
+        setExamsList(Array.isArray(exJson.data) ? exJson.data : []);
+      } else {
+        setExamsList([]);
+      }
 
       // 2. Fetch Grading Scales
       const gsRes = await fetch('/api/exams/grading-scales', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const gsJson = await gsRes.json();
-      if (gsJson.success) setGradingScales(gsJson.data);
+      const gsJson = await gsRes.json().catch(() => ({}));
+      if (gsJson?.success) {
+        setGradingScales(Array.isArray(gsJson.data) ? gsJson.data : []);
+      } else {
+        setGradingScales([]);
+      }
 
       // 3. Fetch Report Cards for Selected Exam
       const rcRes = await fetch(`/api/exams/report-cards?examId=${selectedExamId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const rcJson = await rcRes.json();
-      if (rcJson.success) setReportCards(rcJson.data);
+      const rcJson = await rcRes.json().catch(() => ({}));
+      if (rcJson?.success) {
+        setReportCards(Array.isArray(rcJson.data) ? rcJson.data : []);
+      } else {
+        setReportCards([]);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -278,23 +291,25 @@ export default function ExamsManagementPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setShowExamModal(true)}
-            className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('exams.createExam', 'Schedule New Exam')}</span>
-          </button>
+        {!isStudent && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowExamModal(true)}
+              className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('exams.createExam', 'Schedule New Exam')}</span>
+            </button>
 
-          <button
-            onClick={() => setShowScaleModal(true)}
-            className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <Sliders className="w-4 h-4" />
-            <span>{t('exams.createScale', 'Configure Grading Scale')}</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setShowScaleModal(true)}
+              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <Sliders className="w-4 h-4" />
+              <span>{t('exams.createScale', 'Configure Grading Scale')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Automated Grade Shield Banner */}
@@ -327,17 +342,19 @@ export default function ExamsManagementPage() {
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('marks')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'marks'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Calculator className="w-4 h-4" />
-          <span>{t('exams.tabMarksEntry', 'Marks Entry')}</span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('marks')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'marks'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Calculator className="w-4 h-4" />
+            <span>{t('exams.tabMarksEntry', 'Marks Entry')}</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('results')}
@@ -348,72 +365,84 @@ export default function ExamsManagementPage() {
           }`}
         >
           <Award className="w-4 h-4" />
-          <span>{t('exams.tabResultProcessing', 'Result Engine & Ranks')}</span>
+          <span>{isStudent ? 'Exam Results & Report Card' : t('exams.tabResultProcessing', 'Result Engine & Ranks')}</span>
           <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
             {reportCards.length} Cards
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('scales')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'scales'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span>{t('exams.tabGradingScale', 'Grading Scales')}</span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('scales')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'scales'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>{t('exams.tabGradingScale', 'Grading Scales')}</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: EXAMS LIST & SCHEDULES */}
       {activeTab === 'exams' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {examsList.map((ex) => (
-            <div
-              key={ex._id}
-              className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:shadow-lg transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-block bg-sky-100 text-sky-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
-                    {ex.examType} • Class 10-A
+        (examsList || []).length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm max-w-xl mx-auto space-y-3">
+            <FileCheck className="w-12 h-12 text-sky-400 mx-auto" />
+            <h3 className="font-bold text-gray-800 text-lg">No Exam Schedules Created</h3>
+            <p className="text-gray-500 text-xs">
+              {isStudent ? 'No examinations have been scheduled for your grade yet.' : 'Schedule exams with subject marks allocations and grading rules using the button above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {(examsList || []).map((ex) => (
+              <div
+                key={ex._id}
+                className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="inline-block bg-sky-100 text-sky-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                      {ex.examType} • Class 10-A
+                    </span>
+                    <h3 className="text-xl font-bold text-gray-900">{ex.name}</h3>
+                  </div>
+                  <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-md">
+                    {ex.status}
                   </span>
-                  <h3 className="text-xl font-bold text-gray-900">{ex.name}</h3>
                 </div>
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-md">
-                  {ex.status}
-                </span>
-              </div>
 
-              <div className="mt-4 space-y-2">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configured Subjects & Max Marks</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {ex.subjects?.map((sub, idx) => (
-                    <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs flex justify-between">
-                      <span className="font-bold text-gray-800">{sub.subjectId}</span>
-                      <span className="text-gray-500">Max: <strong>{sub.maxMarks}</strong> | Pass: {sub.passingMarks}</span>
-                    </div>
-                  ))}
+                <div className="mt-4 space-y-2">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configured Subjects & Max Marks</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ex.subjects?.map((sub, idx) => (
+                      <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs flex justify-between">
+                        <span className="font-bold text-gray-800">{sub.subjectId}</span>
+                        <span className="text-gray-500">Max: <strong>{sub.maxMarks}</strong> | Pass: {sub.passingMarks}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                  <span>Applied Scale: <strong>{ex.gradingScaleId}</strong></span>
+                  <button
+                    onClick={() => {
+                      setSelectedExamId(ex._id);
+                      setActiveTab('results');
+                    }}
+                    className="text-sky-600 font-bold hover:underline"
+                  >
+                    View Report Cards & Ranks →
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                <span>Applied Scale: <strong>{ex.gradingScaleId}</strong></span>
-                <button
-                  onClick={() => {
-                    setSelectedExamId(ex._id);
-                    setActiveTab('results');
-                  }}
-                  className="text-sky-600 font-bold hover:underline"
-                >
-                  View Report Cards & Ranks →
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* TAB 2: BATCH MARKS ENTRY (TEACHER INTERFACE) */}
@@ -422,7 +451,7 @@ export default function ExamsManagementPage() {
           <div className="p-5 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-800 text-base">Batch Marks Entry Grid</h3>
-              <p className="text-xs text-gray-500">Subject: Mathematics (sub_math10) • Exam ID: {selectedExamId}</p>
+              <p className="text-xs text-gray-500">Subject: Mathematics (sub_math10) • Exam ID: {selectedExamId || 'None Selected'}</p>
             </div>
             <button
               onClick={handleSaveMarks}
@@ -445,37 +474,45 @@ export default function ExamsManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {marksBatchData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-bold text-gray-900">{row.studentId}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-gray-600">{row.subjectId}</td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="number"
-                        value={row.marksObtained}
-                        onChange={(e) => {
-                          const updated = [...marksBatchData];
-                          updated[idx].marksObtained = Number(e.target.value);
-                          setMarksBatchData(updated);
-                        }}
-                        className="w-24 px-3 py-1.5 border rounded-lg font-bold text-sky-700 focus:ring-2 focus:ring-sky-500"
-                      />
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-500">{row.maxMarks}</td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={row.isAbsent}
-                        onChange={(e) => {
-                          const updated = [...marksBatchData];
-                          updated[idx].isAbsent = e.target.checked;
-                          setMarksBatchData(updated);
-                        }}
-                        className="w-4 h-4 text-sky-600 rounded"
-                      />
+                {(marksBatchData || []).length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-xs text-gray-400">
+                      No student records available for batch entry.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  (marksBatchData || []).map((row, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-bold text-gray-900">{row.studentId}</td>
+                      <td className="px-6 py-4 text-xs font-mono text-gray-600">{row.subjectId}</td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          value={row.marksObtained}
+                          onChange={(e) => {
+                            const updated = [...marksBatchData];
+                            updated[idx].marksObtained = Number(e.target.value);
+                            setMarksBatchData(updated);
+                          }}
+                          className="w-24 px-3 py-1.5 border rounded-lg font-bold text-sky-700 focus:ring-2 focus:ring-sky-500"
+                        />
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-500">{row.maxMarks}</td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={row.isAbsent}
+                          onChange={(e) => {
+                            const updated = [...marksBatchData];
+                            updated[idx].isAbsent = e.target.checked;
+                            setMarksBatchData(updated);
+                          }}
+                          className="w-4 h-4 text-sky-600 rounded"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -485,33 +522,35 @@ export default function ExamsManagementPage() {
       {/* TAB 3: BACKEND RESULT ENGINE & CLASS RANKINGS */}
       {activeTab === 'results' && (
         <div className="space-y-6">
-          {/* Engine Trigger Box */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center space-x-1">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Automatic Grade Processing</span>
-              </span>
-              <h3 className="text-xl font-bold mt-1">Calculate Class Results & Ranks</h3>
-              <p className="text-gray-300 text-xs mt-1">
-                Calculates percentages, assigns grades according to school rules, and ranks students automatically.
-              </p>
-            </div>
+          {/* Engine Trigger Box (Teachers & Admin Only) */}
+          {!isStudent && (
+            <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center space-x-1">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Automatic Grade Processing</span>
+                </span>
+                <h3 className="text-xl font-bold mt-1">Calculate Class Results & Ranks</h3>
+                <p className="text-gray-300 text-xs mt-1">
+                  Calculates percentages, assigns grades according to school rules, and ranks students automatically.
+                </p>
+              </div>
 
-            <button
-              onClick={handleRunBackendResultEngine}
-              disabled={calculating}
-              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold px-6 py-3 rounded-xl shadow-lg transition-transform hover:scale-105 disabled:opacity-50"
-            >
-              <RotateCw className={`w-5 h-5 ${calculating ? 'animate-spin' : ''}`} />
-              <span>{calculating ? 'Calculating...' : t('exams.calculateResults', 'Calculate Class Results')}</span>
-            </button>
-          </div>
+              <button
+                onClick={handleRunBackendResultEngine}
+                disabled={calculating}
+                className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold px-6 py-3 rounded-xl shadow-lg transition-transform hover:scale-105 disabled:opacity-50"
+              >
+                <RotateCw className={`w-5 h-5 ${calculating ? 'animate-spin' : ''}`} />
+                <span>{calculating ? 'Calculating...' : t('exams.calculateResults', 'Calculate Class Results')}</span>
+              </button>
+            </div>
+          )}
 
           {/* Report Cards / Leaderboard Table */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="p-5 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800 text-base">Class Leaderboard & Report Cards</h3>
+              <h3 className="font-bold text-gray-800 text-base">{isStudent ? 'My Exam Report Card' : 'Class Leaderboard & Report Cards'}</h3>
               <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full">
                 Sorted by Class Rank
               </span>
@@ -531,41 +570,49 @@ export default function ExamsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {reportCards.map((rc) => (
-                    <tr key={rc._id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-extrabold text-xs ${
-                          rc.classRank === 1
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                            : rc.classRank === 2
-                            ? 'bg-slate-200 text-slate-800'
-                            : rc.classRank === 3
-                            ? 'bg-amber-50 text-amber-800'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          #{rc.classRank}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-900">{rc.studentId}</td>
-                      <td className="px-6 py-4 font-mono text-gray-700">
-                        {rc.totalObtained} / {rc.totalMax}
-                      </td>
-                      <td className="px-6 py-4 font-extrabold text-sky-700">{rc.percentage}%</td>
-                      <td className="px-6 py-4">
-                        <span className="bg-sky-100 text-sky-800 font-extrabold px-2.5 py-1 rounded-md text-xs">
-                          {rc.overallGrade}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-800">{rc.gpa}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                          rc.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {rc.status}
-                        </span>
+                  {(reportCards || []).length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-8 text-center text-xs text-gray-400">
+                        {isStudent ? 'Your examination report cards will appear here once processed.' : 'No report cards generated yet. Run the calculation engine to generate report cards.'}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    (reportCards || []).map((rc) => (
+                      <tr key={rc._id} className="hover:bg-slate-50">
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-extrabold text-xs ${
+                            rc.classRank === 1
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : rc.classRank === 2
+                              ? 'bg-slate-200 text-slate-800'
+                              : rc.classRank === 3
+                              ? 'bg-amber-50 text-amber-800'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            #{rc.classRank}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-gray-900">{rc.studentId}</td>
+                        <td className="px-6 py-4 font-mono text-gray-700">
+                          {rc.totalObtained} / {rc.totalMax}
+                        </td>
+                        <td className="px-6 py-4 font-extrabold text-sky-700">{rc.percentage}%</td>
+                        <td className="px-6 py-4">
+                          <span className="bg-sky-100 text-sky-800 font-extrabold px-2.5 py-1 rounded-md text-xs">
+                            {rc.overallGrade}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-gray-800">{rc.gpa}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            rc.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {rc.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -575,44 +622,54 @@ export default function ExamsManagementPage() {
 
       {/* TAB 4: CONFIGURABLE GRADING SCALE */}
       {activeTab === 'scales' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {gradingScales.map((scale) => (
-            <div key={scale._id} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-gray-900 text-lg">{scale.name}</h3>
-                  <span className="text-xs text-gray-500">Pass Percentage: <strong>{scale.passingPercentage}%</strong></span>
+        (gradingScales || []).length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm max-w-xl mx-auto space-y-3">
+            <Sliders className="w-12 h-12 text-sky-400 mx-auto" />
+            <h3 className="font-bold text-gray-800 text-lg">No Grading Scales Configured</h3>
+            <p className="text-gray-500 text-xs">
+              Click the button above to configure GPA and grade boundary criteria for your institution.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {(gradingScales || []).map((scale) => (
+              <div key={scale._id} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg">{scale.name}</h3>
+                    <span className="text-xs text-gray-500">Pass Percentage: <strong>{scale.passingPercentage}%</strong></span>
+                  </div>
+                  {scale.isDefault && (
+                    <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded">Default Scale</span>
+                  )}
                 </div>
-                {scale.isDefault && (
-                  <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded">Default Scale</span>
-                )}
-              </div>
 
-              <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-gray-500 font-bold uppercase">
-                    <tr>
-                      <th className="px-4 py-2">Grade</th>
-                      <th className="px-4 py-2">Percentage Range</th>
-                      <th className="px-4 py-2">Grade Point</th>
-                      <th className="px-4 py-2">Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {scale.boundaries?.map((b, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2 font-bold text-sky-700">{b.grade}</td>
-                        <td className="px-4 py-2">{b.minPercentage}% - {b.maxPercentage}%</td>
-                        <td className="px-4 py-2 font-semibold">{b.gradePoint}</td>
-                        <td className="px-4 py-2 text-gray-500 italic">{b.remarks}</td>
+                <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 text-gray-500 font-bold uppercase">
+                      <tr>
+                        <th className="px-4 py-2">Grade</th>
+                        <th className="px-4 py-2">Percentage Range</th>
+                        <th className="px-4 py-2">Grade Point</th>
+                        <th className="px-4 py-2">Remarks</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {scale.boundaries?.map((b, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-2 font-bold text-sky-700">{b.grade}</td>
+                          <td className="px-4 py-2">{b.minPercentage}% - {b.maxPercentage}%</td>
+                          <td className="px-4 py-2 font-semibold">{b.gradePoint}</td>
+                          <td className="px-4 py-2 text-gray-500 italic">{b.remarks}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* MODAL 1: SCHEDULE EXAM */}

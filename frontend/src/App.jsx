@@ -1,9 +1,10 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UserManagementPage from './pages/users/UserManagementPage';
@@ -35,18 +36,20 @@ export const App = () => {
     <LanguageProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Public Login Route */}
-            <Route path="/login" element={<LoginPage />} />
+          <ErrorBoundary>
+            <Routes>
+              {/* Public Login Route */}
+              <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected Routes inside MainLayout */}
-            <Route
-              path="/*"
-              element={
-                <MainLayout>
-                  <Routes>
-                    <Route
-                      path="/"
+              {/* Protected Routes inside MainLayout */}
+              <Route
+                path="/*"
+                element={
+                  <MainLayout>
+                    <ErrorBoundary>
+                      <Routes>
+                        <Route
+                          path="/"
                       element={
                         <ProtectedRoute>
                           <DashboardPage />
@@ -78,7 +81,7 @@ export const App = () => {
                     <Route
                       path="/classes"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'TEACHER']}>
                           <AcademicStructurePage />
                         </ProtectedRoute>
                       }
@@ -88,7 +91,7 @@ export const App = () => {
                     <Route
                       path="/students"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'TEACHER']}>
                           <StudentManagementPage />
                         </ProtectedRoute>
                       }
@@ -98,7 +101,7 @@ export const App = () => {
                     <Route
                       path="/teachers"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN']}>
                           <TeacherManagementPage />
                         </ProtectedRoute>
                       }
@@ -107,7 +110,7 @@ export const App = () => {
                     <Route
                       path="/staff"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN']}>
                           <StaffManagementPage />
                         </ProtectedRoute>
                       }
@@ -173,7 +176,7 @@ export const App = () => {
                     <Route
                       path="/payroll"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF']}>
                           <PayrollManagementPage />
                         </ProtectedRoute>
                       }
@@ -209,7 +212,7 @@ export const App = () => {
                     <Route
                       path="/inventory"
                       element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF']}>
                           <InventoryManagementPage />
                         </ProtectedRoute>
                       }
@@ -257,14 +260,22 @@ export const App = () => {
                         </ProtectedRoute>
                       }
                     />
+
+                    {/* Catch-all Fallback within MainLayout */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
-                </MainLayout>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </LanguageProvider>
+                </ErrorBoundary>
+              </MainLayout>
+            }
+          />
+
+          {/* Catch-all Fallback outside MainLayout */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ErrorBoundary>
+    </BrowserRouter>
+  </AuthProvider>
+</LanguageProvider>
   );
 };
 

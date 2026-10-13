@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   Building2,
   Plus,
@@ -11,10 +12,16 @@ import {
   Users,
   ShieldCheck,
   Home,
+  Lock,
+  Phone,
+  Clock,
+  ShieldAlert,
 } from 'lucide-react';
 
 export default function HostelManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [activeTab, setActiveTab] = useState('hostels'); // 'hostels' | 'rooms' | 'allocations'
 
   // Data States
@@ -56,27 +63,28 @@ export default function HostelManagementPage() {
     monthlyFee: 3500,
   });
 
-  const token = localStorage.getItem('erp_token');
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
 
   // Fetch Data
   const fetchData = async () => {
     setLoading(true);
     try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [hRes, rRes, aRes] = await Promise.all([
-        fetch('/api/hostel/hostels', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/hostel/rooms', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/hostel/allocations', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/hostel/hostels', { headers }),
+        fetch('/api/hostel/rooms', { headers }),
+        fetch('/api/hostel/allocations', { headers }),
       ]);
 
       const [hJson, rJson, aJson] = await Promise.all([
-        hRes.json(),
-        rRes.json(),
-        aRes.json(),
+        hRes.json().catch(() => ({})),
+        rRes.json().catch(() => ({})),
+        aRes.json().catch(() => ({})),
       ]);
 
-      if (hJson.success) setHostels(hJson.data || []);
-      if (rJson.success) setRooms(rJson.data || []);
-      if (aJson.success) setAllocations(aJson.data || []);
+      if (hJson?.success) setHostels(Array.isArray(hJson.data) ? hJson.data : []);
+      if (rJson?.success) setRooms(Array.isArray(rJson.data) ? rJson.data : []);
+      if (aJson?.success) setAllocations(Array.isArray(aJson.data) ? aJson.data : []);
     } catch (err) {
       console.error('Hostel fetch error:', err);
     } finally {
@@ -200,91 +208,277 @@ export default function HostelManagementPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold mb-2">
               <Building2 className="w-4 h-4 text-sky-200" />
-              <span>Hostel & Room Management</span>
+              <span>{isStudent ? 'Hostel Facility Portal' : 'Hostel & Room Management'}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Hostel Buildings & Room Allocation
+              {isStudent ? 'Hostel Residence & Accommodation' : 'Hostel Buildings & Room Allocation'}
             </h1>
             <p className="text-sky-100 text-xs mt-1">
-              Building hierarchy, room vacancies, bed capacity enforcement & student residency tracking.
+              {isStudent
+                ? 'Check your active hostel building allocation, room & bed details, and residential guidelines.'
+                : 'Building hierarchy, room vacancies, bed capacity enforcement & student residency tracking.'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowHostelModal(true)}
-              className="px-3.5 py-2 bg-white text-sky-700 font-bold text-xs rounded-xl hover:bg-sky-50 transition-colors shadow flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add Hostel
-            </button>
-            <button
-              onClick={() => setShowAllocModal(true)}
-              className="px-3.5 py-2 bg-ecoGreen-500 text-white font-bold text-xs rounded-xl hover:bg-ecoGreen-600 transition-colors shadow flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Allocate Bed
-            </button>
-          </div>
+          {!isStudent && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHostelModal(true)}
+                className="px-3.5 py-2 bg-white text-sky-700 font-bold text-xs rounded-xl hover:bg-sky-50 transition-colors shadow flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Hostel
+              </button>
+              <button
+                onClick={() => setShowAllocModal(true)}
+                className="px-3.5 py-2 bg-ecoGreen-500 text-white font-bold text-xs rounded-xl hover:bg-ecoGreen-600 transition-colors shadow flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Allocate Bed
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-sky-100 text-sky-700">
-            <Building2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Hostel Buildings</p>
-            <h3 className="text-xl font-bold text-slate-800">{hostels.length}</h3>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
-            <Bed className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Total Rooms</p>
-            <h3 className="text-xl font-bold text-slate-800">{rooms.length}</h3>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-emerald-100 text-emerald-700">
-            <UserCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Active Resident Students</p>
-            <h3 className="text-xl font-bold text-slate-800">
-              {allocations.filter((a) => a.status === 'ACTIVE').length}
-            </h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        {[
-          { id: 'hostels', label: 'Hostel Buildings', icon: Building2 },
-          { id: 'rooms', label: 'Room Directory', icon: Bed },
-          { id: 'allocations', label: 'Bed Allocations', icon: UserCheck },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-sky-600 text-sky-600 bg-sky-50/50'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
+      {/* STUDENT HOSTEL VIEW */}
+      {isStudent ? (
+        (() => {
+          const studentAllocation = (allocations || []).find(
+            (a) =>
+              (user?._id && (a.studentId === user._id || a.studentId === String(user._id))) ||
+              (user?.id && (a.studentId === user.id || a.studentId === String(user.id))) ||
+              (user?.username && a.studentId === user.username) ||
+              (user?.name && a.studentName && a.studentName.toLowerCase() === user.name.toLowerCase())
           );
-        })}
-      </div>
+
+          if (!studentAllocation) {
+            return (
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center max-w-2xl mx-auto space-y-5 my-8">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <div>
+                  <span className="px-3 py-1 bg-rose-100 text-rose-800 text-xs font-extrabold rounded-full uppercase tracking-wider">
+                    Access Denied
+                  </span>
+                  <h2 className="text-xl font-bold text-slate-900 mt-2">Not Registered to Hostel Facility</h2>
+                  <p className="text-slate-600 text-xs mt-2 max-w-lg mx-auto">
+                    Your student account is currently registered as a <strong>Day Scholar</strong>. Access to residential hostel rooms, accommodation data, and hostel amenities is restricted.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-xs text-left space-y-2">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    How to Apply for Campus Hostel Accommodation
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed">
+                    To request on-campus boarding or change your status to a residential student, please submit an accommodation request through the Chief Warden or the School Administrative Office.
+                  </p>
+                  <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-slate-700">
+                    <div>
+                      <span className="text-slate-400 block font-sans text-[10px]">Warden Office Email:</span>
+                      <strong>{user?.schoolEmail || 'warden@school.edu'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-sans text-[10px]">Helpline Contact:</span>
+                      <strong>{user?.schoolPhone || 'Campus Administration'}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const assignedHostel = (hostels || []).find((h) => h._id === studentAllocation?.hostelId || h.hostelName === studentAllocation?.hostelName || h.name === studentAllocation?.hostelName) || null;
+
+          // If Student IS registered to hostel
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* 1. Room Details */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl">
+                        <Bed className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">My Allocated Room</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Campus Boarding</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+                      {studentAllocation.status || 'Allocated'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Hostel Building</span>
+                      <span className="font-bold text-slate-800">
+                        {assignedHostel?.name || studentAllocation.hostelName || 'Campus Residential Hostel'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Room Number</span>
+                      <span className="font-mono font-bold text-sky-700 text-sm">
+                        {studentAllocation.roomNumber ? `Room #${studentAllocation.roomNumber}` : 'Room Assigned'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Bed Allocation</span>
+                      <span className="font-bold text-slate-800">{studentAllocation.bedNumber || 'Assigned Bed'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-slate-500">Allocation Status</span>
+                      <span className="font-extrabold text-emerald-700">{studentAllocation.status || 'ACTIVE'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Warden Details */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-ecoGreen-100 text-ecoGreen-700 rounded-xl">
+                        <UserCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Hostel Warden</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Block Supervision</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-sky-100 text-sky-800 text-xs font-bold rounded-full">
+                      On Duty
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Warden Name</span>
+                      <span className="font-bold text-slate-800">
+                        {assignedHostel?.wardenName || 'Designated Campus Warden'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Contact</span>
+                      {assignedHostel?.wardenPhone ? (
+                        <a href={`tel:${assignedHostel.wardenPhone}`} className="font-bold text-sky-600 flex items-center gap-1 hover:underline">
+                          <Phone className="w-3.5 h-3.5" />
+                          {assignedHostel.wardenPhone}
+                        </a>
+                      ) : (
+                        <span className="font-semibold text-slate-700">{user?.schoolPhone || 'Via Administration'}</span>
+                      )}
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Warden Office</span>
+                      <span className="font-semibold text-slate-700">
+                        {assignedHostel?.wardenOffice || 'Ground Floor Supervisory Desk'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-slate-500">Curfew / Rules</span>
+                      <span className="font-bold text-rose-600">
+                        {assignedHostel?.curfewTime || 'Standard Residence Rules Apply'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Mess & Residence Information */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Mess Guidelines</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Daily Dining Schedule</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-full">
+                      Dining Facility
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <p className="text-slate-600 leading-relaxed">
+                      All registered campus residents have active access to the school dining facility.
+                    </p>
+                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 text-[11px] text-purple-900 space-y-1">
+                      <p className="font-bold">Dining Hall Notice:</p>
+                      <p className="text-slate-600">
+                        Please check the dining hall bulletin board for today's breakfast, lunch, and dinner serving timings and nutritional menu.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        <>
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-sky-100 text-sky-700">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Hostel Buildings</p>
+                <h3 className="text-xl font-bold text-slate-800">{(hostels || []).length}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
+                <Bed className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Total Rooms</p>
+                <h3 className="text-xl font-bold text-slate-800">{(rooms || []).length}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-emerald-100 text-emerald-700">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Active Resident Students</p>
+                <h3 className="text-xl font-bold text-slate-800">
+                  {(allocations || []).filter((a) => a.status === 'ACTIVE').length}
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-slate-200">
+            {[
+              { id: 'hostels', label: 'Hostel Buildings', icon: Building2 },
+              { id: 'rooms', label: 'Room Directory', icon: Bed },
+              { id: 'allocations', label: 'Bed Allocations', icon: UserCheck },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-sky-600 text-sky-600 bg-sky-50/50'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
       {/* Tab Contents */}
       {loading ? (
@@ -452,6 +646,8 @@ export default function HostelManagementPage() {
           )}
         </>
       )}
+    </>
+  )}
 
       {/* Add Hostel Modal */}
       {showHostelModal && (

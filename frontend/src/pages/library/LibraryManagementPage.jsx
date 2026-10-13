@@ -55,7 +55,7 @@ export default function LibraryManagementPage() {
     daysToReturn: 14,
   });
 
-  const token = localStorage.getItem('erp_token');
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
 
   // Fetch Data
   const fetchData = async () => {
@@ -65,15 +65,23 @@ export default function LibraryManagementPage() {
       const bRes = await fetch(`/api/library/books?query=${searchQuery}&category=${categoryFilter}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const bJson = await bRes.json();
-      if (bJson.success) setBooksList(bJson.data);
+      const bJson = await bRes.json().catch(() => ({}));
+      if (bJson?.success) {
+        setBooksList(Array.isArray(bJson.data) ? bJson.data : []);
+      } else {
+        setBooksList([]);
+      }
 
       // 2. Fetch Circulation Logs
       const cRes = await fetch('/api/library/circulation', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const cJson = await cRes.json();
-      if (cJson.success) setCirculationLogs(cJson.data);
+      const cJson = await cRes.json().catch(() => ({}));
+      if (cJson?.success) {
+        setCirculationLogs(Array.isArray(cJson.data) ? cJson.data : []);
+      } else {
+        setCirculationLogs([]);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -187,7 +195,9 @@ export default function LibraryManagementPage() {
     }
   };
 
-  const overdueList = circulationLogs.filter((i) => i.status === 'OVERDUE');
+  const overdueList = (circulationLogs || []).filter((i) => i.status === 'OVERDUE');
+
+  const isStudent = user?.role === 'STUDENT';
 
   return (
     <div className="space-y-6 pb-12">
@@ -211,17 +221,23 @@ export default function LibraryManagementPage() {
             <span>School Library & Books</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold">{t('library.title', 'School Library & Books')}</h1>
-          <p className="text-sky-100 text-sm mt-1 max-w-2xl">{t('library.subtitle', 'Manage catalog books, issue & return records, and overdue late fines')}</p>
+          <p className="text-sky-100 text-sm mt-1 max-w-2xl">
+            {isStudent
+              ? 'Search digital book catalog, check book availability and rack shelf locations in real time'
+              : t('library.subtitle', 'Manage catalog books, issue & return records, and overdue late fines')}
+          </p>
         </div>
 
         {/* Action Button */}
-        <button
-          onClick={() => setShowAddBookModal(true)}
-          className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t('library.addBook', 'Add Book to Catalog')}</span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setShowAddBookModal(true)}
+            className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('library.addBook', 'Add Book to Catalog')}</span>
+          </button>
+        )}
       </div>
 
       {/* Fine Notice Banner */}
@@ -248,43 +264,47 @@ export default function LibraryManagementPage() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>{t('library.tabCatalog', 'Book Catalog & Stock')}</span>
+          <span>{isStudent ? 'Browse Books & Check Availability' : t('library.tabCatalog', 'Book Catalog & Stock')}</span>
           <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">
             {booksList.length}
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('circulation')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'circulation'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span>{t('library.tabCirculation', 'Circulation & Borrowings')}</span>
-          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
-            {circulationLogs.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('overdue')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'overdue'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <AlertTriangle className="w-4 h-4 text-amber-500" />
-          <span>{t('library.tabOverdue', 'Overdue & Late Fines')}</span>
-          {overdueList.length > 0 && (
-            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
-              {overdueList.length}
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('circulation')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'circulation'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>{t('library.tabCirculation', 'Circulation & Borrowings')}</span>
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+              {circulationLogs.length}
             </span>
-          )}
-        </button>
+          </button>
+        )}
+
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('overdue')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'overdue'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <span>{t('library.tabOverdue', 'Overdue & Late Fines')}</span>
+            {overdueList.length > 0 && (
+              <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                {overdueList.length}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* TAB 1: BOOK CATALOG & STOCK */}
@@ -317,52 +337,73 @@ export default function LibraryManagementPage() {
           </div>
 
           {/* Book Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {booksList.map((bk) => (
-              <div
-                key={bk._id}
-                className="bg-white rounded-2xl p-5 shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-lg transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="bg-sky-100 text-sky-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
-                      {bk.category}
-                    </span>
-                    <span className="text-xs text-gray-400 font-mono">{bk.shelfLocation}</span>
-                  </div>
-                  <h4 className="font-bold text-gray-900 text-base">{bk.title}</h4>
-                  <p className="text-xs text-gray-600 mt-1">By <strong>{bk.author}</strong> ({bk.publisher})</p>
-                  <div className="mt-2 text-[11px] font-mono text-gray-400">{bk.accessionNumber}</div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+          {(booksList || []).length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm max-w-xl mx-auto space-y-3">
+              <BookOpen className="w-12 h-12 text-sky-400 mx-auto" />
+              <h3 className="font-bold text-gray-800 text-lg">No Books in Library Catalog</h3>
+              <p className="text-gray-500 text-xs">
+                {isStudent ? 'No titles matched your search criteria.' : 'Add books to catalog stock using the "Add New Book" button above.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(booksList || []).map((bk) => (
+                <div
+                  key={bk._id}
+                  className="bg-white rounded-2xl p-5 shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-lg transition-all"
+                >
                   <div>
-                    <span className="text-xs text-gray-500 block">Available / Total</span>
-                    <span className="text-sm font-extrabold text-sky-700">
-                      {bk.quantityAvailable} / {bk.quantityTotal}
-                    </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="bg-sky-100 text-sky-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                        {bk.category}
+                      </span>
+                      <span className="text-xs text-gray-400 font-mono">{bk.shelfLocation}</span>
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-base">{bk.title}</h4>
+                    <p className="text-xs text-gray-600 mt-1">By <strong>{bk.author}</strong> ({bk.publisher})</p>
+                    <div className="mt-2 text-[11px] font-mono text-gray-400">{bk.accessionNumber}</div>
                   </div>
 
-                  {bk.quantityAvailable > 0 ? (
-                    <button
-                      onClick={() => {
-                        setSelectedBook(bk);
-                        setShowIssueModal(true);
-                      }}
-                      className="inline-flex items-center space-x-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
-                    >
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>{t('library.issueBook', 'Issue Book')}</span>
-                    </button>
-                  ) : (
-                    <span className="text-xs bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded">
-                      Out of Stock
-                    </span>
-                  )}
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-gray-500 block">Available / Total</span>
+                      <span className="text-sm font-extrabold text-sky-700">
+                        {bk.quantityAvailable} / {bk.quantityTotal}
+                      </span>
+                    </div>
+
+                    {isStudent ? (
+                      bk.quantityAvailable > 0 ? (
+                        <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Available
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-full">
+                          Out of Stock
+                        </span>
+                      )
+                    ) : bk.quantityAvailable > 0 ? (
+                      <button
+                        onClick={() => {
+                          setSelectedBook(bk);
+                          setShowIssueModal(true);
+                        }}
+                        className="inline-flex items-center space-x-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{t('library.issueBook', 'Issue Book')}</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded">
+                        Out of Stock
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -388,42 +429,50 @@ export default function LibraryManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {circulationLogs.map((log) => (
-                  <tr key={log._id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-mono font-bold text-sky-700">{log.issueId}</td>
-                    <td className="px-6 py-4 font-bold text-gray-900">{log.borrowerId} ({log.borrowerType})</td>
-                    <td className="px-6 py-4 text-xs text-gray-600">{new Date(log.issueDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-amber-700">{new Date(log.dueDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 font-bold text-red-600">₹{log.overdueFine}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        log.status === 'RETURNED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : log.status === 'OVERDUE'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-sky-100 text-sky-800'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {log.status !== 'RETURNED' ? (
-                        <button
-                          onClick={() => handleReturnBook(log._id)}
-                          className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-transform hover:scale-105"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Return Book</span>
-                        </button>
-                      ) : (
-                        <span className="text-xs text-emerald-600 font-bold flex items-center justify-end space-x-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Returned</span>
-                        </span>
-                      )}
+                {(circulationLogs || []).length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-xs text-gray-400">
+                      No active book borrowing or circulation records found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  (circulationLogs || []).map((log) => (
+                    <tr key={log._id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-mono font-bold text-sky-700">{log.issueId}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{log.borrowerId} ({log.borrowerType})</td>
+                      <td className="px-6 py-4 text-xs text-gray-600">{log.issueDate ? new Date(log.issueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-amber-700">{log.dueDate ? new Date(log.dueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-6 py-4 font-bold text-red-600">₹{log.overdueFine || 0}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          log.status === 'RETURNED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : log.status === 'OVERDUE'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-sky-100 text-sky-800'
+                        }`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {log.status !== 'RETURNED' ? (
+                          <button
+                            onClick={() => handleReturnBook(log._id)}
+                            className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-transform hover:scale-105"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Return Book</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-emerald-600 font-bold flex items-center justify-end space-x-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Returned</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -455,22 +504,30 @@ export default function LibraryManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {overdueList.map((item) => (
-                  <tr key={item._id} className="hover:bg-amber-50/50">
-                    <td className="px-6 py-4 font-mono font-bold text-sky-700">{item.issueId}</td>
-                    <td className="px-6 py-4 font-bold text-gray-900">{item.borrowerId}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-red-600">{new Date(item.dueDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 font-extrabold text-red-600">₹{item.overdueFine}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleReturnBook(item._id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
-                      >
-                        Return & Clear Fine
-                      </button>
+                {(overdueList || []).length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-xs text-gray-400">
+                      Great! There are no overdue book issues at present.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  (overdueList || []).map((item) => (
+                    <tr key={item._id} className="hover:bg-amber-50/50">
+                      <td className="px-6 py-4 font-mono font-bold text-sky-700">{item.issueId}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900">{item.borrowerId}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-red-600">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-6 py-4 font-extrabold text-red-600">₹{item.overdueFine || 0}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleReturnBook(item._id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
+                        >
+                          Return & Clear Fine
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

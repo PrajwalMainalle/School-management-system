@@ -45,11 +45,11 @@ export const TimetableManagementPage = () => {
         axios.get(`/api/timetable?classId=${selectedClass}&sectionId=${selectedSection}&dayOfWeek=${selectedDay}`),
       ]);
 
-      if (clsRes.data.success) setClasses(clsRes.data.data.classes);
-      if (secRes.data.success) setSections(secRes.data.data.sections);
-      if (subRes.data.success) setSubjects(subRes.data.data.subjects);
-      if (tchRes.data.success) setTeachers(tchRes.data.data.teachers);
-      if (ttRes.data.success) setTimetable(ttRes.data.data.timetable);
+      if (clsRes.data?.success) setClasses(Array.isArray(clsRes.data.data?.classes) ? clsRes.data.data.classes : []);
+      if (secRes.data?.success) setSections(Array.isArray(secRes.data.data?.sections) ? secRes.data.data.sections : []);
+      if (subRes.data?.success) setSubjects(Array.isArray(subRes.data.data?.subjects) ? subRes.data.data.subjects : []);
+      if (tchRes.data?.success) setTeachers(Array.isArray(tchRes.data.data?.teachers) ? tchRes.data.data.teachers : []);
+      if (ttRes.data?.success) setTimetable(Array.isArray(ttRes.data.data?.timetable) ? ttRes.data.data.timetable : []);
     } catch (err) {
       console.warn('Timetable fetch error:', err);
     } finally {
@@ -118,7 +118,7 @@ export const TimetableManagementPage = () => {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="w-full px-3 py-2 text-xs bg-slate-50 border rounded-lg text-slate-800"
           >
-            {classes.map((c) => <option key={c._id} value={c._id}>{c.className}</option>)}
+            {(classes || []).map((c) => <option key={c._id} value={c._id}>{c.className}</option>)}
           </select>
         </div>
 
@@ -129,7 +129,7 @@ export const TimetableManagementPage = () => {
             onChange={(e) => setSelectedSection(e.target.value)}
             className="w-full px-3 py-2 text-xs bg-slate-50 border rounded-lg text-slate-800"
           >
-            {sections.map((s) => <option key={s._id} value={s._id}>{s.sectionName}</option>)}
+            {(sections || []).map((s) => <option key={s._id} value={s._id}>{s.sectionName}</option>)}
           </select>
         </div>
 
@@ -159,15 +159,15 @@ export const TimetableManagementPage = () => {
       <Card title={`Timetable Schedule: ${selectedDay}`}>
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
-        ) : timetable.length === 0 ? (
+        ) : (timetable || []).length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-400">
             No periods scheduled for {selectedDay}. Click <strong>Schedule New Period</strong> to add.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {timetable.map((slot) => {
-              const subObj = subjects.find((s) => s._id === slot.subjectId || s.subjectCode === slot.subjectId);
-              const tchObj = teachers.find((t) => t._id === slot.teacherId || t.teacherId === slot.teacherId);
+            {(timetable || []).map((slot) => {
+              const subObj = (subjects || []).find((s) => s._id === slot.subjectId || s.subjectCode === slot.subjectId);
+              const tchObj = (teachers || []).find((t) => t._id === slot.teacherId || t.teacherId === slot.teacherId);
               return (
                 <div key={slot._id} className="p-4 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50/50 to-white shadow-soft relative space-y-2">
                   <div className="flex items-center justify-between">

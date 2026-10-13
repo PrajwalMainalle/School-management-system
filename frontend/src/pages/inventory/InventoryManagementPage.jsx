@@ -83,17 +83,19 @@ const InventoryManagementPage = () => {
     fetchInventoryData();
   }, []);
 
+  const getToken = () => localStorage.getItem('erp_token') || localStorage.getItem('token');
+
   const fetchInventoryData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
+      const token = getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [itemsRes, assetsRes, suppliersRes, statsRes] = await Promise.all([
-        axios.get('/api/inventory/items', { headers }),
-        axios.get('/api/inventory/assets', { headers }),
-        axios.get('/api/inventory/suppliers', { headers }),
-        axios.get('/api/inventory/stats', { headers }),
+        axios.get('/api/inventory/items', { headers }).catch(() => ({ data: {} })),
+        axios.get('/api/inventory/assets', { headers }).catch(() => ({ data: {} })),
+        axios.get('/api/inventory/suppliers', { headers }).catch(() => ({ data: {} })),
+        axios.get('/api/inventory/stats', { headers }).catch(() => ({ data: {} })),
       ]);
 
       if (itemsRes.data?.success) setItems(itemsRes.data.data || []);
@@ -116,7 +118,7 @@ const InventoryManagementPage = () => {
   const handleCreateItem = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.post('/api/inventory/items', itemForm, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -144,7 +146,7 @@ const InventoryManagementPage = () => {
   const handleRecordTxn = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.post('/api/inventory/stock-transactions', txnForm, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -170,7 +172,7 @@ const InventoryManagementPage = () => {
   const handleCreateAsset = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.post('/api/inventory/assets', assetForm, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -198,7 +200,7 @@ const InventoryManagementPage = () => {
   const handleCreateSupplier = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.post('/api/inventory/suppliers', supplierForm, {
         headers: { Authorization: `Bearer ${token}` },
       });

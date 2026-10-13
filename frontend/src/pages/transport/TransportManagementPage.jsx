@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   Bus,
   Plus,
@@ -15,10 +16,14 @@ import {
   Building2,
   Droplets,
   Trees,
+  Phone,
+  Navigation,
 } from 'lucide-react';
 
 export default function TransportManagementPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [activeTab, setActiveTab] = useState('vehicles'); // 'vehicles' | 'drivers' | 'routes' | 'assignments' | 'maintenance'
 
   // Data States
@@ -82,33 +87,34 @@ export default function TransportManagementPage() {
     description: '',
   });
 
-  const token = localStorage.getItem('erp_token');
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
 
   // Fetch All Transport Data
   const fetchData = async () => {
     setLoading(true);
     try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [vRes, dRes, rRes, aRes, mRes] = await Promise.all([
-        fetch('/api/transport/vehicles', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/transport/drivers', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/transport/routes', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/transport/assignments', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/transport/maintenance', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/transport/vehicles', { headers }),
+        fetch('/api/transport/drivers', { headers }),
+        fetch('/api/transport/routes', { headers }),
+        fetch('/api/transport/assignments', { headers }),
+        fetch('/api/transport/maintenance', { headers }),
       ]);
 
       const [vJson, dJson, rJson, aJson, mJson] = await Promise.all([
-        vRes.json(),
-        dRes.json(),
-        rRes.json(),
-        aRes.json(),
-        mRes.json(),
+        vRes.json().catch(() => ({})),
+        dRes.json().catch(() => ({})),
+        rRes.json().catch(() => ({})),
+        aRes.json().catch(() => ({})),
+        mRes.json().catch(() => ({})),
       ]);
 
-      if (vJson.success) setVehicles(vJson.data || []);
-      if (dJson.success) setDrivers(dJson.data || []);
-      if (rJson.success) setRoutes(rJson.data || []);
-      if (aJson.success) setAssignments(aJson.data || []);
-      if (mJson.success) setMaintenances(mJson.data || []);
+      if (vJson?.success) setVehicles(Array.isArray(vJson.data) ? vJson.data : []);
+      if (dJson?.success) setDrivers(Array.isArray(dJson.data) ? dJson.data : []);
+      if (rJson?.success) setRoutes(Array.isArray(rJson.data) ? rJson.data : []);
+      if (aJson?.success) setAssignments(Array.isArray(aJson.data) ? aJson.data : []);
+      if (mJson?.success) setMaintenances(Array.isArray(mJson.data) ? mJson.data : []);
     } catch (err) {
       console.error('Transport fetch error:', err);
     } finally {
@@ -258,101 +264,315 @@ export default function TransportManagementPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold mb-2">
               <Bus className="w-4 h-4 text-sky-200" />
-              <span>Transport & Bus Operations</span>
+              <span>{isStudent ? 'My School Transport' : 'Transport & Bus Operations'}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              School Fleet & Route Operations
+              {isStudent ? 'My Assigned Bus & Route Schedule' : 'School Fleet & Route Operations'}
             </h1>
             <p className="text-sky-100 text-xs mt-1">
-              Vehicle tracking, driver compliance, route scheduling, capacity control & maintenance logs.
+              {isStudent
+                ? 'Check your assigned school bus number, driver contact details, pickup & drop stops and scheduled timings.'
+                : 'Vehicle tracking, driver compliance, route scheduling, capacity control & maintenance logs.'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowVehicleModal(true)}
-              className="px-3.5 py-2 bg-white text-sky-700 font-bold text-xs rounded-xl hover:bg-sky-50 transition-colors shadow flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add Vehicle
-            </button>
-            <button
-              onClick={() => setShowRouteModal(true)}
-              className="px-3.5 py-2 bg-ecoGreen-500 text-white font-bold text-xs rounded-xl hover:bg-ecoGreen-600 transition-colors shadow flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add Route
-            </button>
-          </div>
+          {!isStudent && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowVehicleModal(true)}
+                className="px-3.5 py-2 bg-white text-sky-700 font-bold text-xs rounded-xl hover:bg-sky-50 transition-colors shadow flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Vehicle
+              </button>
+              <button
+                onClick={() => setShowRouteModal(true)}
+                className="px-3.5 py-2 bg-ecoGreen-500 text-white font-bold text-xs rounded-xl hover:bg-ecoGreen-600 transition-colors shadow flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Route
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-sky-100 text-sky-700">
-            <Bus className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Fleet Vehicles</p>
-            <h3 className="text-xl font-bold text-slate-800">{vehicles.length}</h3>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-ecoGreen-100 text-ecoGreen-700">
-            <UserCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Licensed Drivers</p>
-            <h3 className="text-xl font-bold text-slate-800">{drivers.length}</h3>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
-            <MapPin className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Active Routes</p>
-            <h3 className="text-xl font-bold text-slate-800">{routes.length}</h3>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-amber-100 text-amber-700">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Assigned Students</p>
-            <h3 className="text-xl font-bold text-slate-800">{assignments.length}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
-        {[
-          { id: 'vehicles', label: 'Fleet Vehicles', icon: Bus },
-          { id: 'drivers', label: 'Licensed Drivers', icon: UserCheck },
-          { id: 'routes', label: 'Routes & Stops', icon: MapPin },
-          { id: 'assignments', label: 'Student Assignments', icon: Users },
-          { id: 'maintenance', label: 'Vehicle Maintenance', icon: Wrench },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-sky-600 text-sky-600 bg-sky-50/50'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
+      {/* STUDENT TRANSPORT VIEW */}
+      {isStudent ? (
+        (() => {
+          const studentAssignment = (assignments || []).find(
+            (a) =>
+              (user?._id && (a.studentId === user._id || a.studentId === String(user._id))) ||
+              (user?.id && (a.studentId === user.id || a.studentId === String(user.id))) ||
+              (user?.username && a.studentId === user.username) ||
+              (user?.name && a.studentName && a.studentName.toLowerCase() === user.name.toLowerCase())
           );
-        })}
-      </div>
+
+          const assignedVehicle = (vehicles || []).find((v) => v._id === studentAssignment?.vehicleId) || null;
+          const assignedDriver = (drivers || []).find((d) => d._id === studentAssignment?.driverId || (assignedVehicle?.assignedDriverId && d._id === assignedVehicle.assignedDriverId)) || null;
+          const assignedRoute = (routes || []).find((r) => r._id === studentAssignment?.routeId) || null;
+
+          if (!studentAssignment) {
+            return (
+              <div className="bg-white rounded-3xl p-10 border border-slate-200 text-center max-w-xl mx-auto space-y-4 my-8">
+                <div className="w-16 h-16 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center mx-auto">
+                  <Bus className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">No Transport Assigned</h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    You are currently not enrolled in campus bus transportation. Please contact the school transport administration if you need to register for a bus route.
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* 1. Assigned Vehicle Card */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl">
+                        <Bus className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Assigned School Bus</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Daily Commute Vehicle</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-extrabold rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Active
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Bus Number</span>
+                      <span className="font-mono font-bold text-sky-700 text-sm">
+                        {assignedVehicle?.vehicleNumber || 'Pending Assignment'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Vehicle Model</span>
+                      <span className="font-semibold text-slate-800">
+                        {assignedVehicle?.model || assignedVehicle?.vehicleType || 'Standard School Bus'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Seating Capacity</span>
+                      <span className="font-semibold text-slate-800">{assignedVehicle?.capacity || 0} Seats</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-slate-500">Fleet Status</span>
+                      <span className="font-bold text-emerald-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Operational
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Driver & Conductor Card */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-ecoGreen-100 text-ecoGreen-700 rounded-xl">
+                        <UserCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Designated Driver</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Commercial License</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-sky-100 text-sky-800 text-xs font-extrabold rounded-full">
+                      Verified
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Driver Name</span>
+                      <span className="font-bold text-slate-800 text-sm">
+                        {assignedDriver?.name || 'Driver Assigned on Departure'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Direct Contact</span>
+                      {assignedDriver?.phone ? (
+                        <a
+                          href={`tel:${assignedDriver.phone}`}
+                          className="font-bold text-sky-600 flex items-center gap-1 hover:underline"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          {assignedDriver.phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-500">Via Transport Desk</span>
+                      )}
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Driving License</span>
+                      <span className="font-mono text-slate-700 font-medium">
+                        {assignedDriver?.licenseNumber || 'Verified Official License'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-slate-500">Transport Desk</span>
+                      <span className="font-semibold text-slate-700">{user?.schoolPhone || 'Contact Administration'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Assigned Route Card */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+                        <Navigation className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Route Details</h3>
+                        <span className="text-[10px] text-slate-500 font-medium">Designated Boarding Point</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-full font-mono">
+                      {assignedRoute?.routeCode || 'RT-ACTIVE'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Route Name</span>
+                      <span className="font-bold text-slate-800">
+                        {assignedRoute?.routeName || 'Designated Campus Route'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Boarding Stop</span>
+                      <span className="font-bold text-sky-700">
+                        {studentAssignment?.pickupStop || assignedRoute?.stops?.[0]?.stopName || 'Campus Main Entrance'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Morning Pickup</span>
+                      <span className="font-extrabold text-emerald-700">
+                        {studentAssignment?.pickupTime || assignedRoute?.stops?.[0]?.pickupTime || 'Scheduled by Route'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-slate-500">Evening Drop Time</span>
+                      <span className="font-extrabold text-amber-700">
+                        {studentAssignment?.dropTime || assignedRoute?.stops?.[0]?.dropTime || 'Scheduled by Route'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Route Transit Stops Sequence */}
+              {assignedRoute?.stops && assignedRoute.stops.length > 0 && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-sky-600" />
+                    <span>{assignedRoute.routeName} - Transit Stops & Timings</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2">
+                    {assignedRoute.stops.map((stop, i) => (
+                      <div
+                        key={i}
+                        className="p-3.5 rounded-xl border text-xs space-y-1 bg-slate-50/70 border-slate-200"
+                      >
+                        <span className="text-[10px] font-bold block text-slate-400">
+                          Stop #{i + 1}
+                        </span>
+                        <h4 className="font-bold text-slate-800">{stop.stopName || `Stop ${i + 1}`}</h4>
+                        {stop.pickupTime && (
+                          <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 mt-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{stop.pickupTime}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()
+      ) : (
+        <>
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-sky-100 text-sky-700">
+                <Bus className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Fleet Vehicles</p>
+                <h3 className="text-xl font-bold text-slate-800">{(vehicles || []).length}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-ecoGreen-100 text-ecoGreen-700">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Licensed Drivers</p>
+                <h3 className="text-xl font-bold text-slate-800">{(drivers || []).length}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Active Routes</p>
+                <h3 className="text-xl font-bold text-slate-800">{(routes || []).length}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-amber-100 text-amber-700">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Assigned Students</p>
+                <h3 className="text-xl font-bold text-slate-800">{(assignments || []).length}</h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-slate-200">
+            {[
+              { id: 'vehicles', label: 'Fleet Vehicles', icon: Bus },
+              { id: 'drivers', label: 'Licensed Drivers', icon: UserCheck },
+              { id: 'routes', label: 'Routes & Stops', icon: MapPin },
+              { id: 'assignments', label: 'Student Assignments', icon: Users },
+              { id: 'maintenance', label: 'Vehicle Maintenance', icon: Wrench },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-sky-600 text-sky-600 bg-sky-50/50'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
       {/* Tab Contents */}
       {loading ? (
@@ -619,6 +839,8 @@ export default function TransportManagementPage() {
           )}
         </>
       )}
+    </>
+  )}
 
       {/* Add Vehicle Modal */}
       {showVehicleModal && (

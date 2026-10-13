@@ -46,12 +46,21 @@ export const markBatchAttendance = async (req, res, next) => {
 
 export const getClassAttendance = async (req, res, next) => {
   try {
-    const { classId, sectionId, date, userType } = req.query;
+    const { classId, sectionId, date, userType, entityId } = req.query;
     const schoolId = req.user?.schoolId || 'SCHOOL_MAIN';
     const filter = { schoolId, userType: userType || 'STUDENT' };
 
     if (classId) filter.classId = classId;
     if (sectionId) filter.sectionId = sectionId;
+    if (entityId) {
+      filter.entityId = entityId;
+    } else if (req.user?.role === 'STUDENT') {
+      filter.$or = [
+        { entityId: String(req.user._id) },
+        { entityId: req.user.username },
+      ];
+    }
+
     if (date) {
       const d = new Date(date);
       const startOfDay = new Date(d.setHours(0, 0, 0, 0));
@@ -59,7 +68,7 @@ export const getClassAttendance = async (req, res, next) => {
       filter.date = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    const logs = await Attendance.find(filter);
+    const logs = await Attendance.find(filter).sort({ date: -1 });
     return sendSuccess(res, 'Attendance logs fetched', { attendanceLogs: logs });
   } catch (error) {
     next(error);

@@ -24,6 +24,7 @@ import {
 export default function HomeworkManagementPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [activeTab, setActiveTab] = useState('assignments'); // 'assignments' | 'submissions' | 'materials'
 
   // Data States
@@ -67,7 +68,7 @@ export default function HomeworkManagementPage() {
     teacherFeedback: '',
   });
 
-  const token = localStorage.getItem('erp_token');
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
 
   // Fetch Homework & Study Materials
   const fetchData = async () => {
@@ -77,27 +78,36 @@ export default function HomeworkManagementPage() {
       const hwRes = await fetch('/api/homework', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const hwJson = await hwRes.json();
-      if (hwJson.success) {
-        setHomeworkList(hwJson.data);
-        if (hwJson.data && hwJson.data.length > 0) {
-          const firstHwId = hwJson.data[0]._id;
+      const hwJson = await hwRes.json().catch(() => ({}));
+      if (hwJson?.success) {
+        const list = Array.isArray(hwJson.data) ? hwJson.data : [];
+        setHomeworkList(list);
+        if (list.length > 0) {
+          const firstHwId = list[0]._id;
           const detRes = await fetch(`/api/homework/${firstHwId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          const detJson = await detRes.json();
-          if (detJson.success && detJson.data?.submissions) {
+          const detJson = await detRes.json().catch(() => ({}));
+          if (detJson?.success && Array.isArray(detJson.data?.submissions)) {
             setSubmissionsList(detJson.data.submissions);
+          } else {
+            setSubmissionsList([]);
           }
         }
+      } else {
+        setHomeworkList([]);
       }
 
       // 2. Fetch Study Materials
       const matRes = await fetch('/api/homework/study-materials', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const matJson = await matRes.json();
-      if (matJson.success) setStudyMaterials(matJson.data);
+      const matJson = await matRes.json().catch(() => ({}));
+      if (matJson?.success) {
+        setStudyMaterials(Array.isArray(matJson.data) ? matJson.data : []);
+      } else {
+        setStudyMaterials([]);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -259,23 +269,25 @@ export default function HomeworkManagementPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setShowHomeworkModal(true)}
-            className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('homework.createHomework', 'Create Homework')}</span>
-          </button>
+        {!isStudent && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowHomeworkModal(true)}
+              className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('homework.createHomework', 'Create Homework')}</span>
+            </button>
 
-          <button
-            onClick={() => setShowMaterialModal(true)}
-            className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <UploadCloud className="w-4 h-4" />
-            <span>{t('homework.uploadMaterial', 'Upload Study Material')}</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setShowMaterialModal(true)}
+              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>{t('homework.uploadMaterial', 'Upload Study Material')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Cloud Banner */}
@@ -308,20 +320,22 @@ export default function HomeworkManagementPage() {
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('submissions')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'submissions'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <UserCheck className="w-4 h-4" />
-          <span>{t('homework.tabSubmissions', 'Student Submissions')}</span>
-          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
-            {submissionsList.length}
-          </span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('submissions')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'submissions'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>{t('homework.tabSubmissions', 'Student Submissions')}</span>
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+              {submissionsList.length}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('materials')}
@@ -341,67 +355,77 @@ export default function HomeworkManagementPage() {
 
       {/* TAB 1: HOMEWORK ASSIGNMENTS */}
       {activeTab === 'assignments' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {homeworkList.map((hw) => (
-            <div
-              key={hw._id}
-              className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:shadow-lg transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-block bg-sky-100 text-sky-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
-                    Class 10-A • Mathematics
+        homeworkList.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm max-w-xl mx-auto space-y-3">
+            <BookOpen className="w-12 h-12 text-sky-400 mx-auto" />
+            <h3 className="font-bold text-gray-800 text-lg">No Homework Assigned Yet</h3>
+            <p className="text-gray-500 text-xs">
+              {isStudent ? 'You do not have any pending homework assignments at this time.' : 'Create assignments and distribute digital coursework to students using the button above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {(homeworkList || []).map((hw) => (
+              <div
+                key={hw._id}
+                className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="inline-block bg-sky-100 text-sky-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                      Class 10-A • Mathematics
+                    </span>
+                    <h3 className="text-xl font-bold text-gray-900">{hw.title}</h3>
+                  </div>
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-md">
+                    {hw.status}
                   </span>
-                  <h3 className="text-xl font-bold text-gray-900">{hw.title}</h3>
                 </div>
-                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-md">
-                  {hw.status}
-                </span>
+
+                <p className="text-gray-600 text-sm mt-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  {hw.instructions}
+                </p>
+
+                {/* Relational details & due date */}
+                <div className="grid grid-cols-2 gap-4 mt-4 text-xs text-gray-500">
+                  <div className="flex items-center space-x-2">
+                    <UserCheck className="w-4 h-4 text-sky-600" />
+                    <span>Teacher ID: <strong>{hw.teacherId}</strong></span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-amber-600" />
+                    <span>Due: <strong>{hw.dueDate ? new Date(hw.dueDate).toLocaleDateString() : 'N/A'}</strong></span>
+                  </div>
+                </div>
+
+                {/* Attachments via Cloud Storage */}
+                {hw.attachments && hw.attachments.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <span className="text-xs font-semibold text-gray-500 flex items-center space-x-1 mb-2">
+                      <Paperclip className="w-3.5 h-3.5" />
+                      <span>Cloud Storage Attachment Link:</span>
+                    </span>
+                    {hw.attachments.map((att, idx) => (
+                      <a
+                        key={idx}
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-2 text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium px-3 py-1.5 rounded-lg border border-sky-200 transition-colors"
+                      >
+                        <DownloadCloud className="w-3.5 h-3.5 text-sky-600" />
+                        <span className="truncate max-w-xs">{att.name}</span>
+                        <span className="text-[10px] bg-sky-200 px-1.5 py-0.5 rounded text-sky-900 font-mono">
+                          {att.provider || 'AWS S3'}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              <p className="text-gray-600 text-sm mt-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                {hw.instructions}
-              </p>
-
-              {/* Relational details & due date */}
-              <div className="grid grid-cols-2 gap-4 mt-4 text-xs text-gray-500">
-                <div className="flex items-center space-x-2">
-                  <UserCheck className="w-4 h-4 text-sky-600" />
-                  <span>Teacher ID: <strong>{hw.teacherId}</strong></span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-amber-600" />
-                  <span>Due: <strong>{new Date(hw.dueDate).toLocaleDateString()}</strong></span>
-                </div>
-              </div>
-
-              {/* Attachments via Cloud Storage */}
-              {hw.attachments && hw.attachments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <span className="text-xs font-semibold text-gray-500 flex items-center space-x-1 mb-2">
-                    <Paperclip className="w-3.5 h-3.5" />
-                    <span>Cloud Storage Attachment Link:</span>
-                  </span>
-                  {hw.attachments.map((att, idx) => (
-                    <a
-                      key={idx}
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 font-medium px-3 py-1.5 rounded-lg border border-sky-200 transition-colors"
-                    >
-                      <DownloadCloud className="w-3.5 h-3.5 text-sky-600" />
-                      <span className="truncate max-w-xs">{att.name}</span>
-                      <span className="text-[10px] bg-sky-200 px-1.5 py-0.5 rounded text-sky-900 font-mono">
-                        {att.provider || 'AWS S3'}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* TAB 2: STUDENT SUBMISSIONS & EVALUATION */}
@@ -409,7 +433,7 @@ export default function HomeworkManagementPage() {
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50">
             <h3 className="font-bold text-gray-800 text-base">Student Submissions Log</h3>
-            <span className="text-xs text-gray-500">Homework ID: hw_1</span>
+            <span className="text-xs text-gray-500">Homework Submissions</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -425,58 +449,66 @@ export default function HomeworkManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {submissionsList.map((sub) => (
-                  <tr key={sub._id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-gray-900">{sub.studentId}</td>
-                    <td className="px-6 py-4 text-xs text-gray-600">
-                      {new Date(sub.submissionDate).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-700 max-w-xs truncate">
-                      {sub.submissionText}
-                    </td>
-                    <td className="px-6 py-4">
-                      {sub.attachments && sub.attachments.length > 0 ? (
-                        <a
-                          href={sub.attachments[0].url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1.5 text-xs text-sky-700 bg-sky-50 px-2.5 py-1 rounded border border-sky-200 font-medium hover:underline"
-                        >
-                          <Paperclip className="w-3.5 h-3.5" />
-                          <span>{sub.attachments[0].name}</span>
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-400">No file</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {sub.grade ? (
-                        <div className="space-y-0.5">
-                          <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded">
-                            Grade: {sub.grade}
-                          </span>
-                          <p className="text-[11px] text-gray-500 italic">{sub.teacherFeedback}</p>
-                        </div>
-                      ) : (
-                        <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded">
-                          Pending Evaluation
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedSubmission(sub);
-                          setShowEvaluateModal(true);
-                        }}
-                        className="inline-flex items-center space-x-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-transform hover:scale-105"
-                      >
-                        <Award className="w-3.5 h-3.5" />
-                        <span>{t('homework.evaluate', 'Evaluate')}</span>
-                      </button>
+                {(submissionsList || []).length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-8 text-center text-xs text-gray-400">
+                      No student submissions received for this homework yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  (submissionsList || []).map((sub) => (
+                    <tr key={sub._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-900">{sub.studentId}</td>
+                      <td className="px-6 py-4 text-xs text-gray-600">
+                        {sub.submissionDate ? new Date(sub.submissionDate).toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-700 max-w-xs truncate">
+                        {sub.submissionText}
+                      </td>
+                      <td className="px-6 py-4">
+                        {sub.attachments && sub.attachments.length > 0 ? (
+                          <a
+                            href={sub.attachments[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1.5 text-xs text-sky-700 bg-sky-50 px-2.5 py-1 rounded border border-sky-200 font-medium hover:underline"
+                          >
+                            <Paperclip className="w-3.5 h-3.5" />
+                            <span>{sub.attachments[0].name}</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">No file</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {sub.grade ? (
+                          <div className="space-y-0.5">
+                            <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded">
+                              Grade: {sub.grade}
+                            </span>
+                            <p className="text-[11px] text-gray-500 italic">{sub.teacherFeedback}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded">
+                            Pending Evaluation
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => {
+                            setSelectedSubmission(sub);
+                            setShowEvaluateModal(true);
+                          }}
+                          className="inline-flex items-center space-x-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-transform hover:scale-105"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          <span>{t('homework.evaluate', 'Evaluate')}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -485,42 +517,52 @@ export default function HomeworkManagementPage() {
 
       {/* TAB 3: STUDY MATERIAL REPOSITORY */}
       {activeTab === 'materials' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {studyMaterials.map((mat) => (
-            <div
-              key={mat._id}
-              className="bg-white rounded-2xl p-5 shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-lg transition-all"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
-                    {mat.category}
-                  </span>
-                  <span className="text-xs text-gray-400 font-mono">Class 10</span>
+        (studyMaterials || []).length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm max-w-xl mx-auto space-y-3">
+            <FileText className="w-12 h-12 text-blue-400 mx-auto" />
+            <h3 className="font-bold text-gray-800 text-lg">No Study Materials Uploaded Yet</h3>
+            <p className="text-gray-500 text-xs">
+              Digital textbooks, notes, and lecture resources uploaded will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(studyMaterials || []).map((mat) => (
+              <div
+                key={mat._id}
+                className="bg-white rounded-2xl p-5 shadow-md border border-slate-100 flex flex-col justify-between hover:shadow-lg transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                      {mat.category}
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono">Class 10</span>
+                  </div>
+                  <h4 className="font-bold text-gray-900 text-base">{mat.title}</h4>
+                  <p className="text-xs text-gray-500 mt-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                    {mat.description}
+                  </p>
                 </div>
-                <h4 className="font-bold text-gray-900 text-base">{mat.title}</h4>
-                <p className="text-xs text-gray-500 mt-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                  {mat.description}
-                </p>
-              </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                {mat.attachments && mat.attachments.length > 0 ? (
-                  <a
-                    href={mat.attachments[0].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
-                  >
-                    <DownloadCloud className="w-3.5 h-3.5" />
-                    <span>Download Resource</span>
-                  </a>
-                ) : null}
-                <span className="text-[10px] text-gray-400">By {mat.uploadedBy}</span>
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  {mat.attachments && mat.attachments.length > 0 ? (
+                    <a
+                      href={mat.attachments[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
+                    >
+                      <DownloadCloud className="w-3.5 h-3.5" />
+                      <span>Download Resource</span>
+                    </a>
+                  ) : null}
+                  <span className="text-[10px] text-gray-400">By {mat.uploadedBy}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* MODAL 1: CREATE HOMEWORK */}

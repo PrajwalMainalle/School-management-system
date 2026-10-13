@@ -43,9 +43,9 @@ export const TeacherManagementPage = () => {
         axios.get('/api/academics/sections'),
       ]);
 
-      if (tchRes.data.success) setTeachers(tchRes.data.data.teachers);
-      if (clsRes.data.success) setClasses(clsRes.data.data.classes);
-      if (secRes.data.success) setSections(secRes.data.data.sections);
+      if (tchRes.data?.success) setTeachers(Array.isArray(tchRes.data.data?.teachers) ? tchRes.data.data.teachers : []);
+      if (clsRes.data?.success) setClasses(Array.isArray(clsRes.data.data?.classes) ? clsRes.data.data.classes : []);
+      if (secRes.data?.success) setSections(Array.isArray(secRes.data.data?.sections) ? secRes.data.data.sections : []);
     } catch (err) {
       console.warn('Teacher fetch error:', err);
     } finally {
@@ -124,9 +124,11 @@ export const TeacherManagementPage = () => {
       </div>
 
       {/* Faculty Table */}
-      <Card title={`Faculty Members Roster (${teachers.length})`}>
+      <Card title={`Faculty Members Roster (${(teachers || []).length})`}>
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
+        ) : (teachers || []).length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500">No faculty members found.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -142,7 +144,7 @@ export const TeacherManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {teachers.map((tc) => {
+                {(teachers || []).map((tc) => {
                   const isClassTeacher = tc.assignedClasses?.some((c) => c.isClassTeacher);
                   return (
                     <tr key={tc._id} className="hover:bg-slate-50">

@@ -86,7 +86,7 @@ export const StudentManagementPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('erp_token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
       const reqHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
       const queryParams = new URLSearchParams();
@@ -100,17 +100,28 @@ export const StudentManagementPage = () => {
         axios.get('/api/academics/sections', reqHeaders).catch(() => null),
       ]);
 
-      if (stuRes?.data?.success && stuRes.data.data?.students) {
+      if (stuRes?.data?.success && Array.isArray(stuRes.data.data?.students)) {
         setStudents(stuRes.data.data.students);
+      } else {
+        setStudents([]);
       }
-      if (admRes?.data?.success && admRes.data.data?.admissions) {
+
+      if (admRes?.data?.success && Array.isArray(admRes.data.data?.admissions)) {
         setAdmissions(admRes.data.data.admissions);
+      } else {
+        setAdmissions([]);
       }
-      if (clsRes?.data?.success && clsRes.data.data?.classes) {
+
+      if (clsRes?.data?.success && Array.isArray(clsRes.data.data?.classes)) {
         setClasses(clsRes.data.data.classes);
+      } else {
+        setClasses([]);
       }
-      if (secRes?.data?.success && secRes.data.data?.sections) {
+
+      if (secRes?.data?.success && Array.isArray(secRes.data.data?.sections)) {
         setSections(secRes.data.data.sections);
+      } else {
+        setSections([]);
       }
     } catch (err) {
       console.warn('SIS data fetch error:', err);
@@ -379,49 +390,57 @@ export const StudentManagementPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {students.map((st) => {
-                    const clsObj = classes.find((c) => c._id === st.classId);
-                    const secObj = sections.find((s) => s._id === st.sectionId);
-                    return (
-                      <tr key={st._id} className="hover:bg-slate-50/80">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-bold flex items-center justify-center text-xs">
-                              {st.firstName.charAt(0)}
+                  {(students || []).length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-xs text-slate-400">
+                        No enrolled students found in directory. Use "Add Student" above to enroll.
+                      </td>
+                    </tr>
+                  ) : (
+                    (students || []).map((st) => {
+                      const clsObj = (classes || []).find((c) => c._id === st.classId);
+                      const secObj = (sections || []).find((s) => s._id === st.sectionId);
+                      return (
+                        <tr key={st._id} className="hover:bg-slate-50/80">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-bold flex items-center justify-center text-xs">
+                                {st.firstName?.charAt(0) || 'S'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-800">{st.firstName || 'Student'} {st.lastName || ''}</p>
+                                <p className="text-[10px] text-slate-400">{st.gender || 'N/A'} • DOB: {st.dateOfBirth ? new Date(st.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-bold text-slate-800">{st.firstName} {st.lastName}</p>
-                              <p className="text-[10px] text-slate-400">{st.gender} • DOB: {new Date(st.dateOfBirth).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-semibold text-sky-700">{st.studentId}</td>
-                        <td className="py-3 px-4 font-mono text-slate-600">{st.admissionNumber}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-700">
-                          {clsObj?.className || 'Class 10'} - {secObj?.sectionName || 'Section A'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">
-                          <p className="font-medium">{st.emergencyContact?.guardianName || 'Parent'}</p>
-                          <p className="text-[10px] text-slate-400">{st.phone || st.emergencyContact?.phone}</p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={st.status === 'ACTIVE' ? 'green' : 'sky'}>
-                            {st.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-2">
-                          <Button onClick={() => setSelectedStudent(st)} variant="outline" size="sm" icon={Eye}>
-                            Profile
-                          </Button>
-                          {['ORGANIZER', 'SUPER_ADMIN', 'ADMIN'].includes(currentUser?.role) && (
-                            <Button onClick={() => { setSelectedStudent(st); setShowPromoteModal(true); }} variant="ghost" size="sm" icon={ArrowUpRight}>
-                              Promote
+                          </td>
+                          <td className="py-3 px-4 font-mono font-semibold text-sky-700">{st.studentId}</td>
+                          <td className="py-3 px-4 font-mono text-slate-600">{st.admissionNumber || 'N/A'}</td>
+                          <td className="py-3 px-4 font-semibold text-slate-700">
+                            {clsObj?.className || 'Class 10'} - {secObj?.sectionName || 'Section A'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600">
+                            <p className="font-medium">{st.emergencyContact?.guardianName || 'Parent'}</p>
+                            <p className="text-[10px] text-slate-400">{st.phone || st.emergencyContact?.phone || 'N/A'}</p>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={st.status === 'ACTIVE' ? 'green' : 'sky'}>
+                              {st.status || 'ACTIVE'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-2">
+                            <Button onClick={() => setSelectedStudent(st)} variant="outline" size="sm" icon={Eye}>
+                              Profile
                             </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                            {['ORGANIZER', 'SUPER_ADMIN', 'ADMIN'].includes(currentUser?.role) && (
+                              <Button onClick={() => { setSelectedStudent(st); setShowPromoteModal(true); }} variant="ghost" size="sm" icon={ArrowUpRight}>
+                                Promote
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -433,19 +452,24 @@ export const StudentManagementPage = () => {
       {activeTab === 'admissions' && (
         <Card title="New Admission Enquiries & Pipeline Applications">
           <div className="space-y-4">
-            {admissions.map((adm) => {
-              const targetClass = classes.find((c) => c._id === adm.seekingClassId);
-              return (
-                <div key={adm._id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-800">{adm.applicantName}</h4>
-                      <Badge variant="sky">{adm.applicationNumber}</Badge>
-                      <Badge variant={adm.status === 'ADMITTED' ? 'green' : adm.status === 'APPROVED' ? 'sky' : 'warning'}>{adm.status}</Badge>
-                    </div>
-                    <p className="text-xs text-slate-600">
-                      Seeking: <strong className="text-sky-700">{targetClass?.className || 'Class 10'}</strong> • DOB: <strong>{new Date(adm.dateOfBirth).toLocaleDateString()}</strong> ({adm.gender}) • Parent: <strong>{adm.parentName}</strong> ({adm.parentPhone}) {adm.parentEmail ? `• ${adm.parentEmail}` : ''}
-                    </p>
+            {(admissions || []).length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                No active admission enquiries in pipeline. Use "New Admission Enquiry" above to record applications.
+              </div>
+            ) : (
+              (admissions || []).map((adm) => {
+                const targetClass = (classes || []).find((c) => c._id === adm.seekingClassId);
+                return (
+                  <div key={adm._id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sm text-slate-800">{adm.applicantName}</h4>
+                        <Badge variant="sky">{adm.applicationNumber}</Badge>
+                        <Badge variant={adm.status === 'ADMITTED' ? 'green' : adm.status === 'APPROVED' ? 'sky' : 'warning'}>{adm.status}</Badge>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Seeking: <strong className="text-sky-700">{targetClass?.className || 'Class 10'}</strong> • DOB: <strong>{adm.dateOfBirth ? new Date(adm.dateOfBirth).toLocaleDateString() : 'N/A'}</strong> ({adm.gender || 'N/A'}) • Parent: <strong>{adm.parentName}</strong> ({adm.parentPhone}) {adm.parentEmail ? `• ${adm.parentEmail}` : ''}
+                      </p>
                     {adm.address?.city && (
                       <p className="text-[11px] text-slate-500">
                         Address: {adm.address.street ? `${adm.address.street}, ` : ''}{adm.address.city}, {adm.address.state || ''} {adm.address.pincode || ''}
@@ -477,7 +501,7 @@ export const StudentManagementPage = () => {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </Card>
       )}

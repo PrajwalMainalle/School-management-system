@@ -20,9 +20,12 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const MeetingRoomPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,9 +70,10 @@ const MeetingRoomPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get('/api/meetings/meetings', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setMeetings(res.data.data || []);
@@ -207,9 +211,10 @@ const MeetingRoomPage = () => {
   const handleCreateMeeting = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post('/api/meetings/meetings', scheduleForm, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.data?.success) {
         setShowScheduleModal(false);
@@ -400,13 +405,15 @@ const MeetingRoomPage = () => {
                 Real-time WebRTC audio/video meetings, screen sharing, and interactive classrooms
               </p>
             </div>
-            <button
-              onClick={() => setShowScheduleModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Schedule Online Class / Meeting
-            </button>
+            {!isStudent && (
+              <button
+                onClick={() => setShowScheduleModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Schedule Online Class / Meeting
+              </button>
+            )}
           </div>
 
           {/* Meetings List */}
@@ -486,7 +493,7 @@ const MeetingRoomPage = () => {
       )}
 
       {/* SCHEDULE MEETING MODAL */}
-      {showScheduleModal && (
+      {!isStudent && showScheduleModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900">Schedule Online Meeting / Class</h3>

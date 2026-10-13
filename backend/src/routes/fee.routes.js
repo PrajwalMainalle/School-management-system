@@ -18,9 +18,9 @@ router.use(protect);
 
 // Financial routes restricted to authorized finance roles
 router.post('/structures', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), createFeeStructure);
-router.get('/structures', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getFeeStructures);
+router.get('/structures', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF', 'STUDENT'), getFeeStructures);
 router.post('/invoices', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), generateInvoices);
-router.get('/invoices', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getInvoices);
+router.get('/invoices', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF', 'STUDENT'), getInvoices);
 router.post('/payments', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), collectPayment);
 router.get('/summary', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getFinancialSummary);
 router.get('/config', authorizeRoles('ORGANIZER', 'SUPER_ADMIN', 'ADMIN', 'NON_TEACHING_STAFF'), getFinanceConfig);

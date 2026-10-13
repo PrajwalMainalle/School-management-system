@@ -42,12 +42,12 @@ export const AcademicStructurePage = () => {
         axios.get('/api/school/branches'),
       ]);
 
-      if (clsRes.data.success) setClasses(clsRes.data.data.classes);
-      if (secRes.data.success) setSections(secRes.data.data.sections);
-      if (subRes.data.success) setSubjects(subRes.data.data.subjects);
-      if (yrRes.data.success) setAcademicYears(yrRes.data.data.academicYears);
-      if (schRes.data.success) setSchoolInfo(schRes.data.data.school);
-      if (brRes.data.success) setBranches(brRes.data.data.branches);
+      if (clsRes.data?.success) setClasses(Array.isArray(clsRes.data.data?.classes) ? clsRes.data.data.classes : []);
+      if (secRes.data?.success) setSections(Array.isArray(secRes.data.data?.sections) ? secRes.data.data.sections : []);
+      if (subRes.data?.success) setSubjects(Array.isArray(subRes.data.data?.subjects) ? subRes.data.data.subjects : []);
+      if (yrRes.data?.success) setAcademicYears(Array.isArray(yrRes.data.data?.academicYears) ? yrRes.data.data.academicYears : []);
+      if (schRes.data?.success) setSchoolInfo(schRes.data.data?.school || null);
+      if (brRes.data?.success) setBranches(Array.isArray(brRes.data.data?.branches) ? brRes.data.data.branches : []);
     } catch (err) {
       console.warn('Academic data fetch error:', err);
     } finally {
@@ -187,21 +187,21 @@ export const AcademicStructurePage = () => {
       {activeTab === 'classes' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800">Classes Overview ({classes.length})</h3>
+            <h3 className="text-sm font-bold text-slate-800">Classes Overview ({(classes || []).length})</h3>
             <div className="flex items-center gap-2">
               <Button onClick={() => setShowClassModal(true)} icon={Plus} variant="primary" size="sm">
                 {t('academics.addClass')}
               </Button>
-              <Button onClick={() => { setSectionForm({ ...sectionForm, classId: classes[0]?._id || '' }); setShowSectionModal(true); }} icon={Plus} variant="secondary" size="sm">
+              <Button onClick={() => { setSectionForm({ ...sectionForm, classId: (classes || [])[0]?._id || '' }); setShowSectionModal(true); }} icon={Plus} variant="secondary" size="sm">
                 {t('academics.addSection')}
               </Button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {classes.map((cls) => {
-              const classSecs = sections.filter((s) => s.classId === cls._id);
-              const classSubs = subjects.filter((sb) => sb.classId === cls._id);
+            {(classes || []).map((cls) => {
+              const classSecs = (sections || []).filter((s) => s.classId === cls._id);
+              const classSubs = (subjects || []).filter((sb) => sb.classId === cls._id);
               return (
                 <Card key={cls._id} ecoBorder={true} className="space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">

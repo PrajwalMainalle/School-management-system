@@ -43,28 +43,32 @@ export const Sidebar = () => {
     navItems.push({ path: '/users', label: t('nav.userManagement'), icon: UserCheck });
   }
 
-  const moduleItems = [
-    { path: '/students', label: t('nav.students'), icon: GraduationCap },
-    { path: '/teachers', label: t('nav.teachers'), icon: Users },
-    { path: '/staff', label: t('nav.staff'), icon: Briefcase },
-    { path: '/classes', label: t('nav.classes'), icon: BookOpen },
+  const isStudent = user?.role === 'STUDENT';
+
+  const rawModuleItems = [
+    { path: '/students', label: t('nav.students'), icon: GraduationCap, hideForStudents: true },
+    { path: '/teachers', label: t('nav.teachers'), icon: Users, hideForStudents: true },
+    { path: '/staff', label: t('nav.staff'), icon: Briefcase, hideForStudents: true },
+    { path: '/classes', label: t('nav.classes'), icon: BookOpen, hideForStudents: true },
     { path: '/timetable', label: t('nav.timetable'), icon: Clock },
     { path: '/attendance', label: t('nav.attendance'), icon: CheckSquare },
     { path: '/homework', label: t('nav.homework'), icon: BookOpen },
     { path: '/exams', label: t('nav.exams'), icon: FileCheck },
     { path: '/fees', label: t('nav.fees'), icon: CreditCard },
-    { path: '/finance', label: t('nav.finance'), icon: Building2 },
-    { path: '/payroll', label: t('nav.payroll'), icon: DollarSign },
+    { path: '/finance', label: t('nav.finance'), icon: Building2, hideForStudents: true },
+    { path: '/payroll', label: t('nav.payroll'), icon: DollarSign, hideForStudents: true },
     { path: '/library', label: t('nav.library'), icon: Library },
     { path: '/transport', label: t('nav.transport'), icon: Bus },
     { path: '/hostel', label: t('nav.hostel'), icon: Home },
-    { path: '/inventory', label: t('nav.inventory'), icon: Package },
+    { path: '/inventory', label: t('nav.inventory'), icon: Package, hideForStudents: true },
     { path: '/meetings', label: t('nav.meetings'), icon: Video },
     { path: '/calendar', label: t('nav.calendar'), icon: Calendar },
     { path: '/notices', label: t('nav.notices'), icon: Bell },
     { path: '/reports', label: t('nav.reports'), icon: BarChart3 },
-    { path: '/settings', label: t('nav.settings'), icon: Settings },
+    { path: '/settings', label: t('nav.settings'), icon: Settings, hideForStudents: true },
   ];
+
+  const moduleItems = rawModuleItems.filter((item) => !isStudent || !item.hideForStudents);
 
   const allNavItems = [...navItems, ...moduleItems];
 

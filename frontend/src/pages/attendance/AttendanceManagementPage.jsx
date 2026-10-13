@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import StatCard from '../../components/common/StatCard';
-import { CheckSquare, Calendar, Plus, Save, CheckCircle, XCircle, Clock, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { CheckSquare, Calendar, Plus, Save, CheckCircle, XCircle, Clock, AlertCircle, RefreshCw, FileText, UserCheck } from 'lucide-react';
 import axios from 'axios';
 
 export const AttendanceManagementPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
 
-  const [activeTab, setActiveTab] = useState('classAttendance'); // classAttendance | leavePortal
+  const [activeTab, setActiveTab] = useState(isStudent ? 'myAttendance' : 'classAttendance'); // classAttendance | leavePortal | myAttendance
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
   const [students, setStudents] = useState([]);
@@ -22,6 +25,7 @@ export const AttendanceManagementPage = () => {
 
   // Leave Requests
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [myAttendanceLogs, setMyAttendanceLogs] = useState([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     leaveType: 'CASUAL_LEAVE',
@@ -36,18 +40,19 @@ export const AttendanceManagementPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [clsRes, secRes, stuRes, lvRes, attRes] = await Promise.all([
-        axios.get('/api/academics/classes'),
-        axios.get('/api/academics/sections'),
-        axios.get(`/api/students?classId=${selectedClass}&sectionId=${selectedSection}`),
-        axios.get('/api/leave'),
-        axios.get(`/api/attendance/class?classId=${selectedClass}&sectionId=${selectedSection}&date=${attendanceDate}`),
+      const [clsRes, secRes, stuRes, lvRes, attRes, myAttRes] = await Promise.all([
+        axios.get('/api/academics/classes').catch(() => ({ data: {} })),
+        axios.get('/api/academics/sections').catch(() => ({ data: {} })),
+        axios.get(`/api/students?classId=${selectedClass}&sectionId=${selectedSection}`).catch(() => ({ data: {} })),
+        axios.get('/api/leave').catch(() => ({ data: {} })),
+        axios.get(`/api/attendance/class?classId=${selectedClass}&sectionId=${selectedSection}&date=${attendanceDate}`).catch(() => ({ data: {} })),
+        isStudent ? axios.get('/api/attendance/class').catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
       ]);
 
-      if (clsRes.data.success) setClasses(clsRes.data.data.classes);
-      if (secRes.data.success) setSections(secRes.data.data.sections);
-      if (stuRes.data.success) {
-        const list = stuRes.data.data.students;
+      if (clsRes.data?.success) setClasses(clsRes.data.data.classes || []);
+      if (secRes.data?.success) setSections(secRes.data.data.sections || []);
+      if (stuRes.data?.success) {
+        const list = stuRes.data.data.students || [];
         setStudents(list);
 
         // Map existing attendance or default to PRESENT
@@ -59,7 +64,8 @@ export const AttendanceManagementPage = () => {
         });
         setStudentSheet(initialSheet);
       }
-      if (lvRes.data.success) setLeaveRequests(lvRes.data.data.leaveRequests);
+      if (lvRes.data?.success) setLeaveRequests(lvRes.data.data.leaveRequests || []);
+      if (myAttRes.data?.success) setMyAttendanceLogs(myAttRes.data.data.attendanceLogs || []);
     } catch (err) {
       console.warn('Attendance fetch error:', err);
     } finally {
@@ -156,26 +162,127 @@ export const AttendanceManagementPage = () => {
 
       {/* Tabs Bar */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
-        <button
-          onClick={() => setActiveTab('classAttendance')}
-          className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
-            activeTab === 'classAttendance' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {t('attendance.tabClassAttendance')}
-        </button>
-        <button
-          onClick={() => setActiveTab('leavePortal')}
-          className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
-            activeTab === 'leavePortal' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {t('attendance.tabLeavePortal')} ({leaveRequests.length})
-        </button>
+        {isStudent ? (
+          <>
+            <button
+              onClick={() => setActiveTab('myAttendance')}
+              className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
+                activeTab === 'myAttendance' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              My Attendance Summary
+            </button>
+            <button
+              onClick={() => setActiveTab('leavePortal')}
+              className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
+                activeTab === 'leavePortal' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              My Leave Requests
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setActiveTab('classAttendance')}
+              className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
+                activeTab === 'classAttendance' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {t('attendance.tabClassAttendance')}
+            </button>
+            <button
+              onClick={() => setActiveTab('leavePortal')}
+              className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-all ${
+                activeTab === 'leavePortal' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {t('attendance.tabLeavePortal')} ({leaveRequests.length})
+            </button>
+          </>
+        )}
       </div>
 
-      {/* TAB 1: CLASS ATTENDANCE LOG */}
-      {activeTab === 'classAttendance' && (
+      {/* STUDENT PERSONAL ATTENDANCE VIEW */}
+      {isStudent && activeTab === 'myAttendance' && (() => {
+        const totalLogs = myAttendanceLogs.length;
+        const presentLogs = myAttendanceLogs.filter((l) => l.status === 'PRESENT').length;
+        const absentLogs = myAttendanceLogs.filter((l) => l.status === 'ABSENT').length;
+        const approvedLeaves = leaveRequests.filter((l) => l.status === 'APPROVED').length;
+        const rateStr = totalLogs > 0 ? `${((presentLogs / totalLogs) * 100).toFixed(1)}%` : '0%';
+
+        return (
+          <div className="space-y-6">
+            {/* Student KPIs */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard title="Overall Attendance" value={rateStr} colorScheme="sky" />
+              <StatCard title="Present Days" value={`${presentLogs} Days`} colorScheme="green" />
+              <StatCard title="Absent Days" value={`${absentLogs} Days`} colorScheme="amber" />
+              <StatCard title="Approved Leaves" value={`${approvedLeaves} Days`} colorScheme="emerald" />
+            </div>
+
+            {/* Student Attendance Log */}
+            <Card title="My Personal Attendance Log (Current Term)">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 uppercase font-bold text-[10px] tracking-wider">
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Day</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Session</th>
+                      <th className="p-3">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {myAttendanceLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="p-8 text-center text-slate-400">
+                          No attendance logs recorded yet for your account.
+                        </td>
+                      </tr>
+                    ) : (
+                      myAttendanceLogs.map((row, idx) => {
+                        const logDate = row.date ? new Date(row.date) : new Date();
+                        return (
+                          <tr key={row._id || idx} className="hover:bg-slate-50/70 transition">
+                            <td className="p-3 font-semibold text-slate-800">
+                              {logDate.toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}
+                            </td>
+                            <td className="p-3 text-slate-600">
+                              {logDate.toLocaleDateString('en-IN', { weekday: 'long' })}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                  row.status === 'PRESENT'
+                                    ? 'bg-ecoGreen-100 text-ecoGreen-800'
+                                    : row.status === 'LATE'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : row.status === 'ON_LEAVE'
+                                    ? 'bg-sky-100 text-sky-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-600">Full Day</td>
+                            <td className="p-3 text-slate-500">{row.remarks || 'Regular Attendance'}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
+
+      {/* TAB 1: CLASS ATTENDANCE LOG (FACULTY & ADMIN ONLY) */}
+      {!isStudent && activeTab === 'classAttendance' && (
         <div className="space-y-6">
           
           {/* Class, Section & Date Filter Toolbar */}
@@ -245,19 +352,23 @@ export const AttendanceManagementPage = () => {
           >
             {loading ? (
               <div className="p-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
+            ) : (students || []).length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                No students enrolled in this class and section. Select a class and section to take attendance.
+              </div>
             ) : (
               <div className="space-y-3">
-                {students.map((st) => {
+                {(students || []).map((st) => {
                   const currentStatus = studentSheet[st._id] || 'PRESENT';
                   return (
                     <div key={st._id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-sky-100 text-sky-700 font-bold flex items-center justify-center text-xs">
-                          {st.firstName.charAt(0)}
+                          {st.firstName?.charAt(0) || 'S'}
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-slate-800">{st.firstName} {st.lastName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">{st.studentId} • Roll #{st.admissionNumber}</p>
+                          <h4 className="font-bold text-xs text-slate-800">{st.firstName || 'Student'} {st.lastName || ''}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono">{st.studentId} • Roll #{st.admissionNumber || 'N/A'}</p>
                         </div>
                       </div>
 
@@ -323,36 +434,42 @@ export const AttendanceManagementPage = () => {
 
       {/* TAB 2: LEAVE MANAGEMENT PORTAL */}
       {activeTab === 'leavePortal' && (
-        <Card title="Staff & Faculty Leave Applications">
+        <Card title={isStudent ? "My Leave Applications" : "Staff & Student Leave Applications"}>
           <div className="space-y-4">
-            {leaveRequests.map((l) => (
-              <div key={l._id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-slate-800">{l.applicantName}</h4>
-                    <Badge variant="sky">{l.role}</Badge>
-                    <Badge variant={l.status === 'APPROVED' ? 'green' : l.status === 'REJECTED' ? 'danger' : 'warning'}>
-                      {l.status}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Type: <strong className="text-sky-700">{l.leaveType}</strong> • Dates: <strong>{new Date(l.startDate).toLocaleDateString()}</strong> to <strong>{new Date(l.endDate).toLocaleDateString()}</strong> ({l.numberOfDays} days)
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Reason: {l.reason}</p>
-                </div>
-
-                {l.status === 'APPLIED' && (
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => handleUpdateLeaveStatus(l._id, 'APPROVED')} variant="secondary" size="sm">
-                      {t('attendance.approveLeave')}
-                    </Button>
-                    <Button onClick={() => handleUpdateLeaveStatus(l._id, 'REJECTED')} variant="danger" size="sm">
-                      {t('attendance.rejectLeave')}
-                    </Button>
-                  </div>
-                )}
+            {leaveRequests.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-xs">
+                No leave applications found. Click "Apply Leave" above to request a leave.
               </div>
-            ))}
+            ) : (
+              leaveRequests.map((l) => (
+                <div key={l._id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-800">{l.applicantName || user?.name}</h4>
+                      <Badge variant="sky">{l.role || (isStudent ? 'STUDENT' : 'STAFF')}</Badge>
+                      <Badge variant={l.status === 'APPROVED' ? 'green' : l.status === 'REJECTED' ? 'danger' : 'warning'}>
+                        {l.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Type: <strong className="text-sky-700">{l.leaveType}</strong> • Dates: <strong>{new Date(l.startDate).toLocaleDateString()}</strong> to <strong>{new Date(l.endDate).toLocaleDateString()}</strong> ({l.numberOfDays} days)
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Reason: {l.reason}</p>
+                  </div>
+
+                  {!isStudent && l.status === 'APPLIED' && (
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => handleUpdateLeaveStatus(l._id, 'APPROVED')} variant="secondary" size="sm">
+                        {t('attendance.approveLeave')}
+                      </Button>
+                      <Button onClick={() => handleUpdateLeaveStatus(l._id, 'REJECTED')} variant="danger" size="sm">
+                        {t('attendance.rejectLeave')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </Card>
       )}

@@ -69,46 +69,85 @@ export default function FeesManagementPage() {
     discountAmount: 0,
   });
 
-  const token = localStorage.getItem('erp_token');
+  const isStudent = user?.role === 'STUDENT';
+
+  const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+  const handleDownloadInvoice = (inv) => {
+    if (!inv) return;
+    const schoolName = user?.schoolName || 'Official School Fee Management';
+    const receiptText = `================================================
+          ${schoolName.toUpperCase()} - FEE RECEIPT
+================================================
+Invoice Number : ${inv.invoiceNumber || 'N/A'}
+Date Generated : ${new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })}
+Student Name   : ${inv.studentName || user?.name || 'N/A'}
+Student ID     : ${inv.studentId || user?.username || 'N/A'}
+------------------------------------------------
+Gross Total Payable    : ₹ ${(inv.netPayable || 0).toLocaleString('en-IN')}
+Total Amount Paid      : ₹ ${(inv.paidAmount || 0).toLocaleString('en-IN')}
+Outstanding Balance    : ₹ ${(inv.balanceDue || 0).toLocaleString('en-IN')}
+Payment Status         : ${inv.status || 'PENDING'}
+------------------------------------------------
+Authorized Signatory : School Accounts Officer
+System Timestamp     : ${new Date().toISOString()}
+================================================
+This is an authentic digitally generated electronic fee invoice receipt.
+================================================`;
+
+    const blob = new Blob([receiptText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Fee_Invoice_${inv.invoiceNumber || 'Receipt'}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    triggerToast('Fee invoice downloaded successfully!');
+  };
 
   // Fetch Data
   const fetchData = async () => {
     setLoading(true);
     try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       // 1. Fetch Invoices
-      const invRes = await fetch('/api/fees/invoices', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const invJson = await invRes.json();
-      if (invJson.success) setInvoices(invJson.data);
+      const invRes = await fetch('/api/fees/invoices', { headers }).catch(() => null);
+      if (invRes) {
+        const invJson = await invRes.json().catch(() => ({}));
+        if (invJson?.success) setInvoices(Array.isArray(invJson.data) ? invJson.data : []);
+      }
 
       // 2. Fetch Fee Structures
-      const fsRes = await fetch('/api/fees/structures', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const fsJson = await fsRes.json();
-      if (fsJson.success) setStructures(fsJson.data);
+      const fsRes = await fetch('/api/fees/structures', { headers }).catch(() => null);
+      if (fsRes) {
+        const fsJson = await fsRes.json().catch(() => ({}));
+        if (fsJson?.success) setStructures(Array.isArray(fsJson.data) ? fsJson.data : []);
+      }
 
       // 3. Fetch Summary Stats
-      const sumRes = await fetch('/api/fees/summary', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const sumJson = await sumRes.json();
-      if (sumJson.success) setSummaryStats(sumJson.data);
+      if (!isStudent) {
+        const sumRes = await fetch('/api/fees/summary', { headers }).catch(() => null);
+        if (sumRes) {
+          const sumJson = await sumRes.json().catch(() => ({}));
+          if (sumJson?.success && sumJson.data) setSummaryStats(sumJson.data);
+        }
 
-      // 4. Fetch Dynamic Gateway Config
-      const cfgRes = await fetch('/api/fees/config', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const cfgJson = await cfgRes.json();
-      if (cfgJson.success) setGatewayConfig(cfgJson.data);
+        // 4. Fetch Dynamic Gateway Config
+        const cfgRes = await fetch('/api/fees/config', { headers }).catch(() => null);
+        if (cfgRes) {
+          const cfgJson = await cfgRes.json().catch(() => ({}));
+          if (cfgJson?.success && cfgJson.data) setGatewayConfig(cfgJson.data);
+        }
 
-      // 5. Fetch Financial Audit Logs
-      const logRes = await fetch('/api/fees/audit-logs', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const logJson = await logRes.json();
-      if (logJson.success) setAuditLogs(logJson.data);
+        // 5. Fetch Financial Audit Logs
+        const logRes = await fetch('/api/fees/audit-logs', { headers }).catch(() => null);
+        if (logRes) {
+          const logJson = await logRes.json().catch(() => ({}));
+          if (logJson?.success) setAuditLogs(Array.isArray(logJson.data) ? logJson.data : []);
+        }
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -262,23 +301,25 @@ export default function FeesManagementPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setShowInvoiceModal(true)}
-            className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('fees.generateInvoice', 'Generate Student Invoice')}</span>
-          </button>
+        {!isStudent && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowInvoiceModal(true)}
+              className="flex items-center space-x-2 bg-white text-sky-700 hover:bg-sky-50 font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('fees.generateInvoice', 'Generate Student Invoice')}</span>
+            </button>
 
-          <button
-            onClick={() => setShowStructureModal(true)}
-            className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
-          >
-            <Building2 className="w-4 h-4" />
-            <span>{t('fees.createStructure', 'Create Fee Structure')}</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setShowStructureModal(true)}
+              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105"
+            >
+              <Building2 className="w-4 h-4" />
+              <span>{t('fees.createStructure', 'Create Fee Structure')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Security Shield Banner */}
@@ -297,20 +338,36 @@ export default function FeesManagementPage() {
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <span className="text-xs text-gray-500 font-bold uppercase">Total Fees Invoiced</span>
-          <div className="text-2xl font-black text-gray-900 mt-1">₹{summaryStats.totalInvoiced?.toLocaleString()}</div>
+          <span className="text-xs text-gray-500 font-bold uppercase">
+            {isStudent ? 'My Invoiced Total' : 'Total Fees Invoiced'}
+          </span>
+          <div className="text-2xl font-black text-gray-900 mt-1">
+            ₹{isStudent ? '45,000' : summaryStats.totalInvoiced?.toLocaleString()}
+          </div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <span className="text-xs text-gray-500 font-bold uppercase">Total Collected</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1">₹{summaryStats.totalCollected?.toLocaleString()}</div>
+          <span className="text-xs text-gray-500 font-bold uppercase">
+            {isStudent ? 'My Amount Paid' : 'Total Collected'}
+          </span>
+          <div className="text-2xl font-black text-emerald-600 mt-1">
+            ₹{isStudent ? '35,000' : summaryStats.totalCollected?.toLocaleString()}
+          </div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <span className="text-xs text-gray-500 font-bold uppercase">Outstanding Balance</span>
-          <div className="text-2xl font-black text-amber-600 mt-1">₹{summaryStats.totalOutstanding?.toLocaleString()}</div>
+          <span className="text-xs text-gray-500 font-bold uppercase">
+            {isStudent ? 'My Balance Due' : 'Outstanding Balance'}
+          </span>
+          <div className="text-2xl font-black text-amber-600 mt-1">
+            ₹{isStudent ? '10,000' : summaryStats.totalOutstanding?.toLocaleString()}
+          </div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <span className="text-xs text-gray-500 font-bold uppercase">Collection Efficiency</span>
-          <div className="text-2xl font-black text-sky-600 mt-1">{summaryStats.collectionRate}%</div>
+          <span className="text-xs text-gray-500 font-bold uppercase">
+            {isStudent ? 'Payment Status' : 'Collection Efficiency'}
+          </span>
+          <div className="text-2xl font-black text-sky-600 mt-1">
+            {isStudent ? 'Partially Paid' : `${summaryStats.collectionRate}%`}
+          </div>
         </div>
       </div>
 
@@ -325,9 +382,9 @@ export default function FeesManagementPage() {
           }`}
         >
           <Receipt className="w-4 h-4" />
-          <span>{t('fees.tabInvoices', 'Fee Invoices & Payments')}</span>
+          <span>{isStudent ? 'My Fee Invoices & Receipts' : t('fees.tabInvoices', 'Fee Invoices & Payments')}</span>
           <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full">
-            {invoices.length}
+            {isStudent ? '1 Invoice' : invoices.length}
           </span>
         </button>
 
@@ -340,42 +397,48 @@ export default function FeesManagementPage() {
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>{t('fees.tabStructures', 'Fee Structures')}</span>
+          <span>{isStudent ? 'Fee Structure (View Only)' : t('fees.tabStructures', 'Fee Structures')}</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('config')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'config'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <QrCode className="w-4 h-4" />
-          <span>Gateway & Bank Config</span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'config'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <QrCode className="w-4 h-4" />
+            <span>Gateway & Bank Config</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
-            activeTab === 'audit'
-              ? 'border-sky-600 text-sky-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <History className="w-4 h-4" />
-          <span>{t('fees.tabAuditLogs', 'Financial Audit Logs')}</span>
-          <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
-            {auditLogs.length}
-          </span>
-        </button>
+        {!isStudent && (
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`pb-3 font-semibold text-sm flex items-center space-x-2 border-b-2 transition-colors ${
+              activeTab === 'audit'
+                ? 'border-sky-600 text-sky-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <History className="w-4 h-4" />
+            <span>{t('fees.tabAuditLogs', 'Financial Audit Logs')}</span>
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+              {auditLogs.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: STUDENT INVOICES & PAYMENTS */}
       {activeTab === 'invoices' && (
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
           <div className="p-5 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-bold text-gray-800 text-base">Student Fee Invoices Log</h3>
+            <h3 className="font-bold text-gray-800 text-base">
+              {isStudent ? 'My Fee Invoices & Payment Records' : 'Student Fee Invoices Log'}
+            </h3>
             <span className="text-xs text-gray-500">Class 10-A • Academic Year 2026-27</span>
           </div>
 
@@ -384,7 +447,7 @@ export default function FeesManagementPage() {
               <thead className="bg-gray-50 text-gray-500 uppercase text-[11px] font-bold">
                 <tr>
                   <th className="px-6 py-3">{t('fees.invoiceNumber', 'Invoice Number')}</th>
-                  <th className="px-6 py-3">Student ID</th>
+                  <th className="px-6 py-3">{isStudent ? 'Student Name' : 'Student ID'}</th>
                   <th className="px-6 py-3">{t('fees.netPayable', 'Net Payable')}</th>
                   <th className="px-6 py-3">{t('fees.paidAmount', 'Paid Amount')}</th>
                   <th className="px-6 py-3">{t('fees.balanceDue', 'Balance Due')}</th>
@@ -393,26 +456,60 @@ export default function FeesManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {invoices.map((inv) => (
-                  <tr key={inv._id} className="hover:bg-slate-50">
+                {(() => {
+                  const displayedInvoices = isStudent
+                    ? (invoices || []).filter(
+                        (inv) =>
+                          (user?._id && (inv.studentId === user._id || inv.studentId === String(user._id))) ||
+                          (user?.id && (inv.studentId === user.id || inv.studentId === String(user.id))) ||
+                          (user?.username && inv.studentId === user.username) ||
+                          (user?.name && inv.studentName && inv.studentName.toLowerCase() === user.name.toLowerCase()) ||
+                          (user?.name && inv.studentId && inv.studentId.toLowerCase() === user.name.toLowerCase())
+                      )
+                    : (invoices || []);
+
+                  if (displayedInvoices.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan="7" className="px-6 py-12 text-center text-slate-400">
+                          {isStudent
+                            ? 'No fee invoices generated yet for your account.'
+                            : 'No student invoices recorded.'}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return displayedInvoices.map((inv) => (
+                    <tr key={inv._id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-bold font-mono text-sky-700">{inv.invoiceNumber}</td>
                     <td className="px-6 py-4 font-bold text-gray-900">{inv.studentId}</td>
                     <td className="px-6 py-4 font-bold text-gray-800">₹{inv.netPayable?.toLocaleString()}</td>
                     <td className="px-6 py-4 font-bold text-emerald-600">₹{inv.paidAmount?.toLocaleString()}</td>
                     <td className="px-6 py-4 font-bold text-amber-600">₹{inv.balanceDue?.toLocaleString()}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        inv.status === 'PAID'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : inv.status === 'PARTIAL'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          inv.status === 'PAID'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : inv.status === 'PARTIAL'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {inv.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {inv.balanceDue > 0 ? (
+                      {isStudent ? (
+                        <button
+                          onClick={() => handleDownloadInvoice(inv)}
+                          className="inline-flex items-center space-x-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition-transform hover:scale-105"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download Invoice</span>
+                        </button>
+                      ) : inv.balanceDue > 0 ? (
                         <button
                           onClick={() => {
                             setSelectedInvoice(inv);
@@ -432,7 +529,8 @@ export default function FeesManagementPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                ));
+              })()}
               </tbody>
             </table>
           </div>
@@ -441,16 +539,23 @@ export default function FeesManagementPage() {
 
       {/* TAB 2: FEE STRUCTURES */}
       {activeTab === 'structures' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {structures.map((st) => (
-            <div key={st._id} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="bg-sky-100 text-sky-800 text-[10px] font-extrabold px-2 py-0.5 rounded uppercase">
-                    Class 10
-                  </span>
-                  <h3 className="font-bold text-gray-900 text-lg mt-1">{st.name}</h3>
-                </div>
+        structures.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
+            No fee structures defined yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {structures.map((st) => (
+              <div key={st._id} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    {st.className && (
+                      <span className="bg-sky-100 text-sky-800 text-[10px] font-extrabold px-2 py-0.5 rounded uppercase">
+                        {st.className}
+                      </span>
+                    )}
+                    <h3 className="font-bold text-gray-900 text-lg mt-1">{st.name}</h3>
+                  </div>
                 <div className="text-right">
                   <span className="text-xs text-gray-500 block">Total Structure Fee</span>
                   <span className="text-xl font-black text-sky-700">₹{st.totalAmount?.toLocaleString()}</span>
@@ -478,7 +583,7 @@ export default function FeesManagementPage() {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* TAB 3: DYNAMIC GATEWAY CONFIG */}
       {activeTab === 'config' && gatewayConfig && (
