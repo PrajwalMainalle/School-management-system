@@ -46,11 +46,31 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [user]);
 
-  // Login Function
+  // Login Function with automatic single-retry for transient connection hiccups
   const login = async (identifier, password) => {
+    const cleanIdentifier = (identifier || '').trim();
+
+    const executeLogin = () =>
+      axios.post('/api/auth/login', {
+        identifier: cleanIdentifier,
+        password,
+      });
+
     try {
-      const response = await axios.post('/api/auth/login', { identifier, password });
-      if (response.data && response.data.success) {
+      let response;
+      try {
+        response = await executeLogin();
+      } catch (initialErr) {
+        // If transient 500 / network drop (e.g. database waking up), retry once after a brief pause
+        if (initialErr.response?.status === 500 || !initialErr.response) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          response = await executeLogin();
+        } else {
+          throw initialErr;
+        }
+      }
+
+      if (response?.data && response.data.success) {
         const { user: userData, token: jwtToken } = response.data.data;
         setUser(userData);
         setToken(jwtToken);
@@ -61,9 +81,18 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         return { success: true, message: response.data.message };
       }
-      return { success: false, message: response.data.message || 'Login failed' };
+      return { success: false, message: response?.data?.message || 'Login failed' };
     } catch (error) {
-      const msg = error.response?.data?.message || error.message || 'Authentication error';
+      let msg = error.response?.data?.message;
+      if (!msg) {
+        if (error.response?.status === 500) {
+          msg = 'Database/Server connection timeout. Please try signing in again.';
+        } else if (error.response?.status === 401) {
+          msg = 'Invalid username/email or password.';
+        } else {
+          msg = error.message || 'Authentication error';
+        }
+      }
       return { success: false, message: msg };
     }
   };

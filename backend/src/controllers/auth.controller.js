@@ -114,7 +114,7 @@ export const login = async (req, res, next) => {
       return sendError(res, 'Email/Username and password are required', null, 400);
     }
 
-    const cleanIdent = identifier.toLowerCase();
+    const cleanIdent = identifier.trim().toLowerCase();
     const user = await User.findOne({
       $or: [{ email: cleanIdent }, { username: cleanIdent }],
     }).select('+password');
@@ -132,8 +132,12 @@ export const login = async (req, res, next) => {
       return sendError(res, 'Invalid credentials', null, 401);
     }
 
-    user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false });
+    // Safely update lastLogin timestamp without triggering document versioning errors or hooks
+    try {
+      await User.findByIdAndUpdate(user._id, { $set: { lastLogin: new Date() } });
+    } catch (saveErr) {
+      console.warn('[Auth Warning] Failed to update lastLogin timestamp:', saveErr.message);
+    }
 
     const token = generateToken(user);
     return sendSuccess(res, 'Login successful', { user: user.toJSON(), token });
